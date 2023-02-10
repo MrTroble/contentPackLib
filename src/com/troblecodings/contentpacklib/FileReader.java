@@ -1,6 +1,5 @@
 package com.troblecodings.contentpacklib;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -11,14 +10,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
-import com.troblecodings.signals.OpenSignalsMain;
 
 public class FileReader {
 
@@ -38,10 +36,10 @@ public class FileReader {
         this.logger = logger;
         this.function = function;
         this.gson = new Gson();
-        this.contentDirectory =  Paths.get("contentpacks", modid);
+        this.contentDirectory =  Paths.get("./contentpacks", modid);
         try {
             Files.createDirectories(contentDirectory);
-            Files.list(contentDirectory).filter(path -> path.endsWith(".zip")).forEach(path -> {
+            Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip")).forEach(path -> {
                 try {
                     paths.add(FileSystems.newFileSystem(path).getPath("."));
                 } catch (IOException e) {
@@ -53,27 +51,33 @@ public class FileReader {
         }
     }
     
+    public List<Path> getPaths() {
+        return this.paths;
+    }
+    
     private String fromInternal(String internal) {
         return internalBaseFolder + "/" + internal;
     }
 
-    public Map<String, String> getFiles(final String internal, final List<Path> paths) {
+    public List<Entry<String, String>> getFiles(final String internal, final List<Path> paths) {
         final List<Path> internalPaths = new ArrayList<>();
         internalPaths.add(function.apply(fromInternal(internal)));
         internalPaths.addAll(paths);
         return getFiles(internalPaths);
     }
 
-    public Map<String, String> getFiles(final List<Path> paths) {
-        final Map<String, String> files = new HashMap<>();
+    public List<Entry<String, String>> getFiles(final List<Path> paths) {
+        final List<Entry<String, String>> files = new ArrayList<>();
         paths.forEach(path -> {
             try {
+                if(!(Files.exists(path) && Files.isDirectory(path)))
+                    return;
                 final Stream<Path> inputs = Files.list(path);
                 inputs.forEach(file -> {
                     try {
                         final String content = new String(Files.readAllBytes(file));
                         final String name = file.getFileName().toString();
-                        files.put(name, content);
+                        files.add(Map.entry(name, content));
                     } catch (final IOException e) {
                         logger.warn("There was a problem during loading " + file + " !");
                         e.printStackTrace();
@@ -88,7 +92,7 @@ public class FileReader {
         return files;
     }
 
-    public Map<String, String> getFiles(final String internal) {
+    public List<Entry<String, String>> getFiles(final String internal) {
         final ArrayList<Path> externalPaths = new ArrayList<>();
         final String fullPath = fromInternal(internal);
         paths.forEach(path -> externalPaths.add(path.resolve(fullPath)));
