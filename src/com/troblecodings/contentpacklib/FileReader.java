@@ -36,25 +36,27 @@ public class FileReader {
         this.logger = logger;
         this.function = function;
         this.gson = new Gson();
-        this.contentDirectory =  Paths.get("./contentpacks", modid);
+        this.contentDirectory = Paths.get("./contentpacks", modid);
         try {
             Files.createDirectories(contentDirectory);
-            Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip")).forEach(path -> {
-                try {
-                    paths.add(FileSystems.newFileSystem(path).getPath("."));
-                } catch (IOException e) {
-                    logger.error(String.format("Could not load %s!", path.toString()), e);
-                }
-            });
+            Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
+                    .forEach(path -> {
+                        try {
+                            paths.add(FileSystems.newFileSystem(path).getRootDirectories()
+                                    .iterator().next());
+                        } catch (IOException e) {
+                            logger.error(String.format("Could not load %s!", path.toString()), e);
+                        }
+                    });
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-    
+
     public List<Path> getPaths() {
         return this.paths;
     }
-    
+
     private String fromInternal(String internal) {
         return internalBaseFolder + "/" + internal;
     }
@@ -70,7 +72,7 @@ public class FileReader {
         final List<Entry<String, String>> files = new ArrayList<>();
         paths.forEach(path -> {
             try {
-                if(!(Files.exists(path) && Files.isDirectory(path)))
+                if (!(Files.exists(path) && Files.isDirectory(path)))
                     return;
                 final Stream<Path> inputs = Files.list(path);
                 inputs.forEach(file -> {
