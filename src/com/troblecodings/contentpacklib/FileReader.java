@@ -18,6 +18,18 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
+import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.repository.PackSource;
+import net.minecraft.server.packs.repository.Pack.Position;
+import net.minecraftforge.event.AddPackFindersEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.resource.PathResourcePack;
+
 public class FileReader {
 
     private static FileSystem fileSystemCache = null;
@@ -51,6 +63,27 @@ public class FileReader {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        FMLJavaModLoadingContext.get().getModEventBus().register(this);
+    }
+
+    @SubscribeEvent
+    public void packEvent(AddPackFindersEvent event) {
+        if(!event.getPackType().equals(PackType.CLIENT_RESOURCES))
+            return;
+        Map<String, Pack> packs = new HashMap<>();
+        event.addRepositorySource((consumer, instance) -> {
+            if (!packs.isEmpty()) {
+                packs.values().forEach(consumer);
+                return;
+            }
+            for (Path path : this.paths) {
+                String fileName = modid + "internal" + packs.size();
+                Component component = new TextComponent(fileName);
+                consumer.accept(instance.create(fileName, component, true,
+                        () -> new PathResourcePack(fileName, path),
+                        new PackMetadataSection(component, 8), Position.TOP, PackSource.DEFAULT, false));
+            }
+        });
     }
 
     public List<Path> getPaths() {
