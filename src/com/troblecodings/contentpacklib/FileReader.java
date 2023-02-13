@@ -23,8 +23,8 @@ import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
 import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.server.packs.repository.Pack.Position;
+import net.minecraft.server.packs.repository.PackSource;
 import net.minecraftforge.event.AddPackFindersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -56,32 +56,33 @@ public class FileReader {
                         try {
                             paths.add(FileSystems.newFileSystem(path).getRootDirectories()
                                     .iterator().next());
-                        } catch (IOException e) {
+                        } catch (final IOException e) {
                             logger.error(String.format("Could not load %s!", path.toString()), e);
                         }
                     });
-        } catch (IOException e) {
+        } catch (final IOException e) {
             e.printStackTrace();
         }
         FMLJavaModLoadingContext.get().getModEventBus().register(this);
     }
 
     @SubscribeEvent
-    public void packEvent(AddPackFindersEvent event) {
-        if(!event.getPackType().equals(PackType.CLIENT_RESOURCES))
+    public void packEvent(final AddPackFindersEvent event) {
+        if (!event.getPackType().equals(PackType.CLIENT_RESOURCES))
             return;
-        Map<String, Pack> packs = new HashMap<>();
+        final Map<String, Pack> packs = new HashMap<>();
         event.addRepositorySource((consumer, instance) -> {
             if (!packs.isEmpty()) {
                 packs.values().forEach(consumer);
                 return;
             }
-            for (Path path : this.paths) {
-                String fileName = modid + "internal" + packs.size();
-                Component component = new TextComponent(fileName);
+            for (final Path path : this.paths) {
+                final String fileName = modid + "internal" + packs.size();
+                final Component component = new TextComponent(fileName);
                 consumer.accept(instance.create(fileName, component, true,
                         () -> new PathResourcePack(fileName, path),
-                        new PackMetadataSection(component, 8), Position.TOP, PackSource.DEFAULT, false));
+                        new PackMetadataSection(component, 8), Position.TOP, PackSource.DEFAULT,
+                        false));
             }
         });
     }
@@ -90,7 +91,7 @@ public class FileReader {
         return this.paths;
     }
 
-    private String fromInternal(String internal) {
+    private String fromInternal(final String internal) {
         return internalBaseFolder + "/" + internal;
     }
 
