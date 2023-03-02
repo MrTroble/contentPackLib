@@ -72,18 +72,18 @@ public class FileReader {
             return;
         final Map<String, Pack> packs = new HashMap<>();
         event.addRepositorySource((consumer, instance) -> {
-            if (!packs.isEmpty()) {
-                packs.values().forEach(consumer);
-                return;
+            if (packs.isEmpty()) {
+                for (final Path path : this.paths) {
+                    final String fileName = modid + "internal" + packs.size();
+                    final Component component = new TextComponent(fileName);
+                    packs.put(fileName,
+                            instance.create(fileName, component, true,
+                                    () -> new PathResourcePack(fileName, path),
+                                    new PackMetadataSection(component, 8), Position.TOP,
+                                    PackSource.DEFAULT, false));
+                }
             }
-            for (final Path path : this.paths) {
-                final String fileName = modid + "internal" + packs.size();
-                final Component component = new TextComponent(fileName);
-                consumer.accept(instance.create(fileName, component, true,
-                        () -> new PathResourcePack(fileName, path),
-                        new PackMetadataSection(component, 8), Position.TOP, PackSource.DEFAULT,
-                        false));
-            }
+            packs.values().forEach(consumer);
         });
     }
 
