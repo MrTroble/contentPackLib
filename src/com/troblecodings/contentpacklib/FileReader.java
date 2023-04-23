@@ -1,7 +1,6 @@
 package com.troblecodings.contentpacklib;
 
 import java.io.IOException;
-import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,7 +31,6 @@ import net.minecraftforge.resource.PathResourcePack;
 
 public class FileReader {
 
-    private static FileSystem fileSystemCache = null;
     private final String modid;
     private final String internalBaseFolder;
     private final Logger logger;
@@ -115,7 +113,7 @@ public class FileReader {
                         final String name = file.getFileName().toString();
                         files.add(Map.entry(name, content));
                     } catch (final IOException e) {
-                        logger.warn("There was a problem during loading " + file + " !");
+                        logger.warn("There was a problem during reading " + file + " !");
                         e.printStackTrace();
                     }
                 });
