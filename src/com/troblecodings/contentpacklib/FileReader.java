@@ -15,14 +15,12 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Logger;
 
+import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
+import net.minecraft.resources.data.PackMetadataSection;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
 import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.Pack.Position;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraftforge.event.AddPackFindersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -111,7 +109,7 @@ public class FileReader {
                     try {
                         final String content = new String(Files.readAllBytes(file));
                         final String name = file.getFileName().toString();
-                        files.add(Map.entry(name, content));
+                        files.add(Maps.immutableEntry(name, content));
                     } catch (final IOException e) {
                         logger.warn("There was a problem during reading " + file + " !");
                         e.printStackTrace();
