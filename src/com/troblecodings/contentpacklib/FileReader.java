@@ -45,9 +45,9 @@ public class FileReader {
             Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
                     .forEach(path -> {
                         try {
-                            paths.add(
-                                    FileSystems.newFileSystem(path.toUri(), Collections.emptyMap())
-                                            .getRootDirectories().iterator().next());
+                            paths.add(FileSystems
+                                    .newFileSystem(path, ClassLoader.getSystemClassLoader())
+                                    .getRootDirectories().iterator().next());
                         } catch (final IOException e) {
                             logger.error(String.format("Could not load %s!", path.toString()), e);
                         }
