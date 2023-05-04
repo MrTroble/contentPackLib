@@ -6,7 +6,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +18,12 @@ import org.apache.logging.log4j.Logger;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.DownloadingPackFinder;
+import net.minecraft.resources.FilePack;
+import net.minecraft.resources.ResourcePack;
+import net.minecraft.resources.ResourcePackInfo;
+import net.minecraft.resources.ResourcePackInfo.Priority;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 public class FileReader {
@@ -31,22 +36,23 @@ public class FileReader {
     private final Gson gson;
     private final Path contentDirectory;
     private final List<Path> paths = new ArrayList<>();
+    private final Class<?> clazz;
 
     public FileReader(final String modid, final String internalBaseFolder, final Logger logger,
-            final Function<String, Path> function) {
+            final Function<String, Path> function, final Class<?> clazz) {
         this.modid = modid;
         this.internalBaseFolder = internalBaseFolder;
         this.logger = logger;
         this.function = function;
         this.gson = new Gson();
-        this.contentDirectory = Paths.get("./contentpacks", modid);
+        this.contentDirectory = Paths.get(System.getProperty("user.dir") + "/contentpacks", modid);
+        this.clazz = clazz;
         try {
             Files.createDirectories(contentDirectory);
             Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
                     .forEach(path -> {
                         try {
-                            paths.add(FileSystems
-                                    .newFileSystem(path, ClassLoader.getSystemClassLoader())
+                            paths.add(FileSystems.newFileSystem(path, clazz.getClassLoader())
                                     .getRootDirectories().iterator().next());
                         } catch (final IOException e) {
                             logger.error(String.format("Could not load %s!", path.toString()), e);
@@ -56,6 +62,23 @@ public class FileReader {
             e.printStackTrace();
         }
         FMLJavaModLoadingContext.get().getModEventBus().register(this);
+    }
+
+    public void loadasResourcePacks() {
+        final List<ResourcePack> packs = new ArrayList<>();
+        try {
+            Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
+                    .forEach(path -> packs.add(new FilePack(path.toFile())));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        final Minecraft mc = Minecraft.getInstance();
+        final DownloadingPackFinder finder = mc.getClientPackSource();
+        packs.forEach(ospack -> {
+            finder.loadPacks(info -> {
+            }, (name, bool, supplier, pack, meta, priority, decorator) -> new ResourcePackInfo(name,
+                    false, supplier, ospack, meta, Priority.TOP, decorator, false));
+        });
     }
 
     public List<Path> getPaths() {
