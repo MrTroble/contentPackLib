@@ -21,14 +21,17 @@ import com.google.gson.Gson;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.DownloadingPackFinder;
 import net.minecraft.resources.FilePack;
+import net.minecraft.resources.IPackNameDecorator;
 import net.minecraft.resources.ResourcePack;
 import net.minecraft.resources.ResourcePackInfo;
 import net.minecraft.resources.ResourcePackInfo.Priority;
+import net.minecraft.resources.data.PackMetadataSection;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.StringTextComponent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 public class FileReader {
 
-    @SuppressWarnings("unused")
     private final String modid;
     private final String internalBaseFolder;
     private final Logger logger;
@@ -74,11 +77,15 @@ public class FileReader {
         }
         final Minecraft mc = Minecraft.getInstance();
         final DownloadingPackFinder finder = mc.getClientPackSource();
-        packs.forEach(ospack -> {
+        int counter = 0;
+        for (final ResourcePack osPack : packs) {
+            final ITextComponent component = new StringTextComponent(
+                    modid + "internal" + String.valueOf(counter++));
             finder.loadPacks(info -> {
             }, (name, bool, supplier, pack, meta, priority, decorator) -> new ResourcePackInfo(name,
-                    false, supplier, ospack, meta, Priority.TOP, decorator, false));
-        });
+                    true, () -> osPack, osPack, new PackMetadataSection(component, 8), Priority.TOP,
+                    IPackNameDecorator.DEFAULT, false));
+        }
     }
 
     public List<Path> getPaths() {
