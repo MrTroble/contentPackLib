@@ -39,23 +39,21 @@ public class FileReader {
     private final Gson gson;
     private final Path contentDirectory;
     private final List<Path> paths = new ArrayList<>();
-    private final Class<?> clazz;
 
     public FileReader(final String modid, final String internalBaseFolder, final Logger logger,
-            final Function<String, Path> function, final Class<?> clazz) {
+            final Function<String, Path> function) {
         this.modid = modid;
         this.internalBaseFolder = internalBaseFolder;
         this.logger = logger;
         this.function = function;
         this.gson = new Gson();
         this.contentDirectory = Paths.get(System.getProperty("user.dir") + "/contentpacks", modid);
-        this.clazz = clazz;
         try {
             Files.createDirectories(contentDirectory);
             Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
                     .forEach(path -> {
                         try {
-                            paths.add(FileSystems.newFileSystem(path, clazz.getClassLoader())
+                            paths.add(FileSystems.newFileSystem(path, Map.of(), null)
                                     .getRootDirectories().iterator().next());
                         } catch (final IOException e) {
                             logger.error(String.format("Could not load %s!", path.toString()), e);
