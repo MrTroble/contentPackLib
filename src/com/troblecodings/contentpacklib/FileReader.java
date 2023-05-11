@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +54,7 @@ public class FileReader {
             Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
                     .forEach(path -> {
                         try {
-                            paths.add(FileSystems.newFileSystem(path, Map.of(), null)
+                            paths.add(FileSystems.newFileSystem(path, (ClassLoader) Collections.emptyMap())
                                     .getRootDirectories().iterator().next());
                         } catch (final IOException e) {
                             logger.error(String.format("Could not load %s!", path.toString()), e);
@@ -70,7 +71,7 @@ public class FileReader {
         try {
             Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
                     .forEach(path -> packs.add(new FilePack(path.toFile())));
-        } catch (IOException e) {
+        } catch (final IOException e) {
             e.printStackTrace();
         }
         final Minecraft mc = Minecraft.getInstance();
