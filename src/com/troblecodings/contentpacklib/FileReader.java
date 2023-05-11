@@ -19,19 +19,13 @@ import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.DownloadingPackFinder;
-import net.minecraft.resources.FilePack;
+import net.minecraft.resources.FolderPackFinder;
 import net.minecraft.resources.IPackNameDecorator;
-import net.minecraft.resources.ResourcePack;
-import net.minecraft.resources.ResourcePackInfo;
-import net.minecraft.resources.ResourcePackInfo.Priority;
-import net.minecraft.resources.data.PackMetadataSection;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.StringTextComponent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraft.resources.ResourcePackList;
 
 public class FileReader {
 
+    @SuppressWarnings("unused")
     private final String modid;
     private final String internalBaseFolder;
     private final Logger logger;
@@ -62,28 +56,9 @@ public class FileReader {
         } catch (final IOException e) {
             e.printStackTrace();
         }
-        FMLJavaModLoadingContext.get().getModEventBus().register(this);
-    }
-
-    public void loadasResourcePacks() {
-        final List<ResourcePack> packs = new ArrayList<>();
-        try {
-            Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
-                    .forEach(path -> packs.add(new FilePack(path.toFile())));
-        } catch (final IOException e) {
-            e.printStackTrace();
-        }
-        final Minecraft mc = Minecraft.getInstance();
-        final DownloadingPackFinder finder = mc.getClientPackSource();
-        int counter = 0;
-        for (final ResourcePack osPack : packs) {
-            final ITextComponent component = new StringTextComponent(
-                    modid + "internal" + String.valueOf(counter++));
-            finder.loadPacks(info -> {
-            }, (name, bool, supplier, pack, meta, priority, decorator) -> new ResourcePackInfo(name,
-                    true, () -> osPack, osPack, new PackMetadataSection(component, 8), Priority.TOP,
-                    IPackNameDecorator.DEFAULT, false));
-        }
+        final ResourcePackList list = Minecraft.getInstance().getResourcePackRepository();
+        list.addPackFinder(
+                new FolderPackFinder(contentDirectory.toFile(), IPackNameDecorator.DEFAULT));
     }
 
     public List<Path> getPaths() {
