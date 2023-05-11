@@ -6,7 +6,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,14 +47,14 @@ public class FileReader {
         this.logger = logger;
         this.function = function;
         this.gson = new Gson();
-        this.contentDirectory = Paths.get(System.getProperty("user.dir") + "/contentpacks", modid);
+        this.contentDirectory = Paths.get("./contentpacks", modid);
         try {
             Files.createDirectories(contentDirectory);
             Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
                     .forEach(path -> {
                         try {
-                            paths.add(FileSystems.newFileSystem(path, (ClassLoader) Collections.emptyMap())
-                                    .getRootDirectories().iterator().next());
+                            paths.add(FileSystems.newFileSystem(path, null).getRootDirectories()
+                                    .iterator().next());
                         } catch (final IOException e) {
                             logger.error(String.format("Could not load %s!", path.toString()), e);
                         }
