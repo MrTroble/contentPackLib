@@ -19,7 +19,6 @@ import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.FolderPackFinder;
 import net.minecraft.resources.IPackNameDecorator;
 import net.minecraft.resources.ResourcePackList;
 
@@ -58,7 +57,7 @@ public class FileReader {
         }
         final ResourcePackList list = Minecraft.getInstance().getResourcePackRepository();
         list.addPackFinder(
-                new FolderPackFinder(contentDirectory.toFile(), IPackNameDecorator.DEFAULT));
+                new CustomFolderPackFinder(contentDirectory.toFile(), IPackNameDecorator.DEFAULT));
     }
 
     public List<Path> getPaths() {
