@@ -31,30 +31,30 @@ public class CustomFolderPackFinder implements IPackFinder {
     }
 
     @Override
-    public void loadPacks(Consumer<ResourcePackInfo> p_230230_1_, IFactory p_230230_2_) {
+    public void loadPacks(final Consumer<ResourcePackInfo> consumer, final IFactory factory) {
         if (!this.folder.isDirectory()) {
             this.folder.mkdirs();
         }
 
-        File[] afile = this.folder.listFiles(RESOURCEPACK_FILTER);
+        final File[] afile = this.folder.listFiles(RESOURCEPACK_FILTER);
         if (afile != null) {
-            for (File file1 : afile) {
-                String s = "file/" + file1.getName();
-                ResourcePackInfo resourcepackinfo = ResourcePackInfo.create(s, true,
-                        this.createSupplier(file1), p_230230_2_, ResourcePackInfo.Priority.TOP,
+            for (final File file1 : afile) {
+                final String s = "CP_" + file1.getName();
+                final ResourcePackInfo resourcepackinfo = ResourcePackInfo.create(s, true,
+                        this.createSupplier(file1), factory, ResourcePackInfo.Priority.TOP,
                         this.packSource);
                 if (resourcepackinfo != null) {
-                    p_230230_1_.accept(resourcepackinfo);
+                    consumer.accept(resourcepackinfo);
                 }
             }
         }
     }
 
-    private Supplier<IResourcePack> createSupplier(File p_195733_1_) {
-        return p_195733_1_.isDirectory() ? () -> {
-            return new FolderPack(p_195733_1_);
+    private Supplier<IResourcePack> createSupplier(final File file) {
+        return file.isDirectory() ? () -> {
+            return new FolderPack(file);
         } : () -> {
-            return new FilePack(p_195733_1_);
+            return new FilePack(file);
         };
     }
 }
