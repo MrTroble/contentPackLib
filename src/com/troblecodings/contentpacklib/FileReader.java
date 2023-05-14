@@ -19,7 +19,6 @@ import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.IPackNameDecorator;
 import net.minecraft.resources.ResourcePackList;
 
 public class FileReader {
@@ -46,8 +45,9 @@ public class FileReader {
             Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
                     .forEach(path -> {
                         try {
-                            paths.add(FileSystems.newFileSystem(path, null).getRootDirectories()
-                                    .iterator().next());
+                            paths.add(FileSystems
+                                    .newFileSystem(path, ClassLoader.getSystemClassLoader())
+                                    .getRootDirectories().iterator().next());
                         } catch (final IOException e) {
                             logger.error(String.format("Could not load %s!", path.toString()), e);
                         }
@@ -55,9 +55,8 @@ public class FileReader {
         } catch (final IOException e) {
             e.printStackTrace();
         }
-        final ResourcePackList list = Minecraft.getInstance().getResourcePackRepository();
-        list.addPackFinder(
-                new CustomFolderPackFinder(contentDirectory.toFile(), IPackNameDecorator.DEFAULT));
+        final ResourcePackList<?> list = Minecraft.getInstance().getResourcePackRepository();
+        list.addSource(new CustomFolderPackFinder(contentDirectory.toFile()));
     }
 
     public List<Path> getPaths() {
