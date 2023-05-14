@@ -21,6 +21,9 @@ import com.google.gson.Gson;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.IPackNameDecorator;
 import net.minecraft.resources.ResourcePackList;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 public class FileReader {
 
@@ -55,9 +58,15 @@ public class FileReader {
         } catch (final IOException e) {
             e.printStackTrace();
         }
+        FMLJavaModLoadingContext.get().getModEventBus().register(this);
+    }
+
+    @SubscribeEvent
+    public void clientSetup(final FMLClientSetupEvent event) {
         final ResourcePackList list = Minecraft.getInstance().getResourcePackRepository();
         list.addPackFinder(
                 new CustomFolderPackFinder(contentDirectory.toFile(), IPackNameDecorator.DEFAULT));
+        list.reload();
     }
 
     public List<Path> getPaths() {
