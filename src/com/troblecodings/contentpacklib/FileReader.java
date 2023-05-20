@@ -57,13 +57,12 @@ public class FileReader {
         } catch (final IOException e) {
             e.printStackTrace();
         }
-        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> registerCPsAsResourcePacks());
+        DistExecutor.runWhenOn(Dist.CLIENT, () -> () -> registerCPsAsResourcePacks());
     }
 
     private void registerCPsAsResourcePacks() {
-        final ResourcePackList list = Minecraft.getInstance().getResourcePackRepository();
-        list.addPackFinder(
-                new CustomFolderPackFinder(contentDirectory.toFile(), IPackNameDecorator.DEFAULT));
+        final ResourcePackList<?> list = Minecraft.getInstance().getResourcePackRepository();
+        list.addSource(new CustomFolderPackFinder(contentDirectory.toFile()));
         list.reload();
     }
 
