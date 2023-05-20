@@ -2,13 +2,12 @@ package com.troblecodings.contentpacklib;
 
 import java.io.File;
 import java.io.FileFilter;
-import java.util.function.Consumer;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import net.minecraft.resources.FilePack;
 import net.minecraft.resources.FolderPack;
 import net.minecraft.resources.IPackFinder;
-import net.minecraft.resources.IPackNameDecorator;
 import net.minecraft.resources.IResourcePack;
 import net.minecraft.resources.ResourcePackInfo;
 import net.minecraft.resources.ResourcePackInfo.IFactory;
@@ -23,15 +22,22 @@ public class CustomFolderPackFinder implements IPackFinder {
     };
 
     private final File folder;
-    private final IPackNameDecorator packSource;
 
-    public CustomFolderPackFinder(final File file, final IPackNameDecorator packSource) {
+    public CustomFolderPackFinder(final File file) {
         this.folder = file;
-        this.packSource = packSource;
     }
 
+    private Supplier<IResourcePack> createSupplier(final File file) {
+        return file.isDirectory() ? () -> {
+            return new FolderPack(file);
+        } : () -> {
+            return new FilePack(file);
+        };
+    }
+
+    @SuppressWarnings("unchecked")
     @Override
-    public void loadPacks(final Consumer<ResourcePackInfo> consumer, final IFactory factory) {
+    public <T extends ResourcePackInfo> void loadPacks(Map<String, T> map, IFactory<T> factory) {
         if (!this.folder.isDirectory()) {
             this.folder.mkdirs();
         }
@@ -41,20 +47,11 @@ public class CustomFolderPackFinder implements IPackFinder {
             for (final File file1 : afile) {
                 final String s = "CP_" + file1.getName();
                 final ResourcePackInfo resourcepackinfo = ResourcePackInfo.create(s, true,
-                        this.createSupplier(file1), factory, ResourcePackInfo.Priority.TOP,
-                        this.packSource);
+                        this.createSupplier(file1), factory, ResourcePackInfo.Priority.TOP);
                 if (resourcepackinfo != null) {
-                    consumer.accept(resourcepackinfo);
+                    map.put(s, (T) resourcepackinfo);
                 }
             }
         }
-    }
-
-    private Supplier<IResourcePack> createSupplier(final File file) {
-        return file.isDirectory() ? () -> {
-            return new FolderPack(file);
-        } : () -> {
-            return new FilePack(file);
-        };
     }
 }
