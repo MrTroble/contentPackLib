@@ -20,6 +20,8 @@ import com.google.gson.Gson;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourcePackList;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 
 public class FileReader {
 
@@ -55,8 +57,14 @@ public class FileReader {
         } catch (final IOException e) {
             e.printStackTrace();
         }
-        final ResourcePackList<?> list = Minecraft.getInstance().getResourcePackRepository();
-        list.addSource(new CustomFolderPackFinder(contentDirectory.toFile()));
+        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> registerCPsAsResourcePacks());
+    }
+
+    private void registerCPsAsResourcePacks() {
+        final ResourcePackList list = Minecraft.getInstance().getResourcePackRepository();
+        list.addPackFinder(
+                new CustomFolderPackFinder(contentDirectory.toFile(), IPackNameDecorator.DEFAULT));
+        list.reload();
     }
 
     public List<Path> getPaths() {
