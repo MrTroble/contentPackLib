@@ -18,11 +18,6 @@ import org.apache.logging.log4j.Logger;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourcePackList;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
-
 public class FileReader {
 
     @SuppressWarnings("unused")
@@ -57,13 +52,6 @@ public class FileReader {
         } catch (final IOException e) {
             e.printStackTrace();
         }
-        DistExecutor.runWhenOn(Dist.CLIENT, () -> () -> registerCPsAsResourcePacks());
-    }
-
-    private void registerCPsAsResourcePacks() {
-        final ResourcePackList<?> list = Minecraft.getInstance().getResourcePackRepository();
-        list.addSource(new CustomFolderPackFinder(contentDirectory.toFile()));
-        list.reload();
     }
 
     public List<Path> getPaths() {
