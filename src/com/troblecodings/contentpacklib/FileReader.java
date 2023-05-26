@@ -1,21 +1,31 @@
 package com.troblecodings.contentpacklib;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Logger;
 
 import com.google.common.collect.Maps;
+import com.google.common.io.ByteStreams;
 import com.google.gson.Gson;
 
 public class FileReader {
@@ -108,6 +118,70 @@ public class FileReader {
             map.put(name, gson.fromJson(content, clazz));
         });
         return map;
+    }
+
+    private static FileSystem fileSystemCache;
+
+    public void addToFileSystem(final FileSystem system) {
+        if (fileSystemCache == null)
+            getRessourceLocation("");
+
+        final URL url = FileReader.class.getResource(internalBaseFolder);
+        try {
+            final URI uri = url.toURI();
+            final String scheme = uri.getScheme();
+            Path path = null;
+            if (scheme.equals("file")) {
+                path = fileSystemCache.provider().getPath(uri);
+            } else if (scheme.equals("jar")) {
+                path = fileSystemCache.getPath("/");
+            }
+            if (path == null) {
+                logger.error("[Error]: Could not get path to add to file system!");
+                return;
+            }
+            final Path finalPath = path;
+            Files.walkFileTree(system.getPath("/"), new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs)
+                        throws IOException {
+                    Path nextPath = finalPath.resolve(file.getFileName().toString());
+                    ByteStreams.copy(Files.newInputStream(file), Files.newOutputStream(nextPath));
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (final URISyntaxException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public Optional<Path> getRessourceLocation(final String location) {
+        String filelocation = location;
+        final URL url = FileReader.class.getResource(internalBaseFolder);
+        try {
+            if (url != null) {
+                final URI uri = url.toURI();
+                if ("file".equals(uri.getScheme())) {
+                    if (!location.startsWith("/"))
+                        filelocation = "/" + filelocation;
+                    final URL resource = FileReader.class.getResource(filelocation);
+                    if (resource == null)
+                        return Optional.empty();
+                    return Optional.of(Paths.get(resource.toURI()));
+                } else {
+                    if (!"jar".equals(uri.getScheme())) {
+                        return Optional.empty();
+                    }
+                    if (fileSystemCache == null) {
+                        fileSystemCache = FileSystems.newFileSystem(uri, Collections.emptyMap());
+                    }
+                    return Optional.of(fileSystemCache.getPath(filelocation));
+                }
+            }
+        } catch (final IOException | URISyntaxException e) {
+            e.printStackTrace();
+        }
+        return Optional.empty();
     }
 
 }
