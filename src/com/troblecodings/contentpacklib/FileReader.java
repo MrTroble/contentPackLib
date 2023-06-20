@@ -18,13 +18,6 @@ import org.apache.logging.log4j.Logger;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.FileResourcePack;
-import net.minecraft.client.resources.SimpleReloadableResourceManager;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.fml.common.Mod.EventHandler;
-import net.minecraftforge.fml.common.event.FMLInitializationEvent;
-
 public class FileReader {
 
     @SuppressWarnings("unused")
@@ -61,14 +54,6 @@ public class FileReader {
         } catch (final IOException e) {
             e.printStackTrace();
         }
-        MinecraftForge.EVENT_BUS.register(this);
-    }
-
-    @EventHandler
-    public void initEvent(final FMLInitializationEvent event) {
-        final SimpleReloadableResourceManager manager = ((SimpleReloadableResourceManager) Minecraft
-                .getMinecraft().getResourceManager());
-        paths.forEach(path -> manager.reloadResourcePack(new FileResourcePack(path.toFile())));
     }
 
     public List<Path> getPaths() {
