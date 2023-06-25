@@ -23,6 +23,7 @@ import net.minecraft.client.resources.FileResourcePack;
 import net.minecraft.client.resources.IReloadableResourceManager;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.client.resources.SimpleReloadableResourceManager;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -128,6 +129,7 @@ public class FileReader {
 	public void onResourceManagerReload(IResourceManager resourceManager) {
 		if (resourceManager instanceof SimpleReloadableResourceManager) {
 			final SimpleReloadableResourceManager manager = (SimpleReloadableResourceManager) resourceManager;
+
 			try {
 				Files.list(contentDirectory)
 						.forEach(path -> manager.reloadResourcePack(new FileResourcePack(path.toFile())));
