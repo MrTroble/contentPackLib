@@ -22,10 +22,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.FileResourcePack;
 import net.minecraft.client.resources.IReloadableResourceManager;
 import net.minecraft.client.resources.IResourceManager;
-import net.minecraft.client.resources.IResourceManagerReloadListener;
 import net.minecraft.client.resources.SimpleReloadableResourceManager;
+import net.minecraftforge.fml.common.FMLCommonHandler;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
-public class FileReader implements IResourceManagerReloadListener {
+public class FileReader {
 
 	@SuppressWarnings("unused")
 	private final String modid;
@@ -44,8 +46,11 @@ public class FileReader implements IResourceManagerReloadListener {
 		this.function = function;
 		this.gson = new Gson();
 		this.contentDirectory = Paths.get("./contentpacks", modid);
-
-		((IReloadableResourceManager) Minecraft.getMinecraft().getResourceManager()).registerReloadListener(this);
+		
+		if(FMLCommonHandler.instance().getSide().isClient()) {
+			((IReloadableResourceManager) Minecraft.getMinecraft().getResourceManager())
+					.registerReloadListener(r -> this.onResourceManagerReload(r));
+		}
 
 		try {
 			Files.createDirectories(contentDirectory);
@@ -119,7 +124,7 @@ public class FileReader implements IResourceManagerReloadListener {
 		return map;
 	}
 
-	@Override
+	@SideOnly(Side.CLIENT)
 	public void onResourceManagerReload(IResourceManager resourceManager) {
 		if (resourceManager instanceof SimpleReloadableResourceManager) {
 			final SimpleReloadableResourceManager manager = (SimpleReloadableResourceManager) resourceManager;
