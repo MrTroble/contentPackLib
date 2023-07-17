@@ -75,8 +75,8 @@ public class ContentPackHandler {
                         try {
                             final ZipInputStream stream = new ZipInputStream(
                                     new FileInputStream(path.toFile()));
-                            ZipEntry entry = null;
-                            while ((entry = stream.getNextEntry()) != null) {
+                            for (ZipEntry entry = stream
+                                    .getNextEntry(); entry != null; entry = stream.getNextEntry()) {
                                 final ZipEntry currentEntry = entry;
                                 counter.getAndUpdate(current -> current ^ currentEntry.getCrc());
                             }
