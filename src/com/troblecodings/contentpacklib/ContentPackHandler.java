@@ -1,17 +1,22 @@
 package com.troblecodings.contentpacklib;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import org.apache.logging.log4j.Logger;
 
@@ -29,7 +34,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.resource.PathResourcePack;
 
-public class FileReader {
+public class ContentPackHandler {
 
     private final String modid;
     private final String internalBaseFolder;
@@ -38,9 +43,10 @@ public class FileReader {
     private final Gson gson;
     private final Path contentDirectory;
     private final List<Path> paths = new ArrayList<>();
+    private final long hash;
 
-    public FileReader(final String modid, final String internalBaseFolder, final Logger logger,
-            final Function<String, Path> function) {
+    public ContentPackHandler(final String modid, final String internalBaseFolder,
+            final Logger logger, final Function<String, Path> function) {
         this.modid = modid;
         this.internalBaseFolder = internalBaseFolder;
         this.logger = logger;
@@ -61,7 +67,33 @@ public class FileReader {
         } catch (final IOException e) {
             e.printStackTrace();
         }
+        Collections.sort(paths, (path1, path2) -> path1.compareTo(path2));
+        final AtomicLong counter = new AtomicLong(0);
+        try {
+            Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
+                    .forEach(path -> {
+                        try {
+                            final ZipInputStream stream = new ZipInputStream(
+                                    new FileInputStream(path.toFile()));
+                            ZipEntry entry = null;
+                            while ((entry = stream.getNextEntry()) != null) {
+                                final ZipEntry currentEntry = entry;
+                                counter.getAndUpdate(current -> current ^ currentEntry.getCrc());
+                            }
+                        } catch (final IOException e) {
+                            e.printStackTrace();
+                        }
+                    });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        hash = counter.get();
         FMLJavaModLoadingContext.get().getModEventBus().register(this);
+        new NetworkContentPackHandler(modid, this);
+    }
+
+    public long getHash() {
+        return hash;
     }
 
     @SubscribeEvent
@@ -135,10 +167,7 @@ public class FileReader {
 
     public <T> Map<String, T> toJson(final Class<T> clazz, final Map<String, String> file) {
         final Map<String, T> map = new HashMap<>();
-        file.forEach((name, content) -> {
-            map.put(name, gson.fromJson(content, clazz));
-        });
+        file.forEach((name, content) -> map.put(name, gson.fromJson(content, clazz)));
         return map;
     }
-
 }
