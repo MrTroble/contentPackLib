@@ -7,7 +7,6 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.network.play.client.CPacketCustomPayload;
-import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
@@ -19,11 +18,10 @@ import net.minecraftforge.fml.common.network.internal.FMLProxyPacket;
 public class NetworkContentPackHandler {
 
     private final FMLEventChannel channel;
-    private final String channelName;
+    private final String channelName = "CPHandlerNet";
     private final ContentPackHandler handler;
 
     public NetworkContentPackHandler(final String modid, final ContentPackHandler handler) {
-        this.channelName = new ResourceLocation(modid, "contentpackhandler").toString();
         channel = NetworkRegistry.INSTANCE.newEventDrivenChannel(channelName);
         this.handler = handler;
         channel.register(this);
