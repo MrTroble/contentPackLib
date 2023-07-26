@@ -1,17 +1,22 @@
 package com.troblecodings.contentpacklib;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import org.apache.logging.log4j.Logger;
 
@@ -19,11 +24,13 @@ import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.FolderPackFinder;
+import net.minecraft.resources.IPackNameDecorator;
 import net.minecraft.resources.ResourcePackList;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 
-public class FileReader {
+public class ContentPackHandler {
 
     @SuppressWarnings("unused")
     private final String modid;
@@ -33,9 +40,10 @@ public class FileReader {
     private final Gson gson;
     private final Path contentDirectory;
     private final List<Path> paths = new ArrayList<>();
+    private final long hash;
 
-    public FileReader(final String modid, final String internalBaseFolder, final Logger logger,
-            final Function<String, Path> function) {
+    public ContentPackHandler(final String modid, final String internalBaseFolder,
+            final Logger logger, final Function<String, Path> function) {
         this.modid = modid;
         this.internalBaseFolder = internalBaseFolder;
         this.logger = logger;
@@ -57,14 +65,40 @@ public class FileReader {
         } catch (final IOException e) {
             e.printStackTrace();
         }
+        Collections.sort(paths, (path1, path2) -> path1.compareTo(path2));
+        final AtomicLong counter = new AtomicLong(0);
+        try {
+            Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
+                    .forEach(path -> {
+                        try {
+                            final ZipInputStream stream = new ZipInputStream(
+                                    new FileInputStream(path.toFile()));
+                            for (ZipEntry entry = stream
+                                    .getNextEntry(); entry != null; entry = stream.getNextEntry()) {
+                                final ZipEntry currentEntry = entry;
+                                counter.getAndUpdate(current -> current ^ currentEntry.getCrc());
+                            }
+                        } catch (final IOException e) {
+                            e.printStackTrace();
+                        }
+                    });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        hash = counter.get();
+        new NetworkContentPackHandler(modid, this);
         DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> registerCPsAsResourcePacks());
     }
 
     private void registerCPsAsResourcePacks() {
         final ResourcePackList list = Minecraft.getInstance().getResourcePackRepository();
         list.addPackFinder(
-                new CustomFolderPackFinder(contentDirectory.toFile(), IPackNameDecorator.DEFAULT));
+                new FolderPackFinder(contentDirectory.toFile(), IPackNameDecorator.DEFAULT));
         list.reload();
+    }
+
+    public long getHash() {
+        return hash;
     }
 
     public List<Path> getPaths() {
