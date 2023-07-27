@@ -24,8 +24,6 @@ import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.FolderPackFinder;
-import net.minecraft.resources.IPackNameDecorator;
 import net.minecraft.resources.ResourcePackList;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
@@ -82,7 +80,7 @@ public class ContentPackHandler {
                             e.printStackTrace();
                         }
                     });
-        } catch (IOException e) {
+        } catch (final IOException e) {
             e.printStackTrace();
         }
         hash = counter.get();
@@ -93,7 +91,7 @@ public class ContentPackHandler {
     private void registerCPsAsResourcePacks() {
         final ResourcePackList list = Minecraft.getInstance().getResourcePackRepository();
         list.addPackFinder(
-                new FolderPackFinder(contentDirectory.toFile(), IPackNameDecorator.DEFAULT));
+                new CustomFolderPackFinder(contentDirectory.toFile()));
         list.reload();
     }
 
