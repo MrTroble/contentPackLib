@@ -24,13 +24,8 @@ import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.FileResourcePack;
-import net.minecraft.client.resources.IReloadableResourceManager;
-import net.minecraft.client.resources.IResourceManager;
-import net.minecraft.client.resources.SimpleReloadableResourceManager;
+import net.minecraft.client.resources.ResourcePackRepository;
 import net.minecraftforge.fml.common.FMLCommonHandler;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
 
 public class ContentPackHandler {
 
@@ -44,6 +39,7 @@ public class ContentPackHandler {
     private final List<Path> paths = new ArrayList<>();
     private final long hash;
 
+    @SuppressWarnings("deprecation")
     public ContentPackHandler(final String modid, final String internalBaseFolder,
             final Logger logger, final Function<String, Path> function) {
         this.modid = modid;
@@ -52,11 +48,6 @@ public class ContentPackHandler {
         this.function = function;
         this.gson = new Gson();
         this.contentDirectory = Paths.get("./contentpacks", modid);
-
-        if (FMLCommonHandler.instance().getSide().isClient()) {
-            ((IReloadableResourceManager) Minecraft.getMinecraft().getResourceManager())
-                    .registerReloadListener(r -> this.onResourceManagerReload(r));
-        }
 
         try {
             Files.createDirectories(contentDirectory);
@@ -96,6 +87,23 @@ public class ContentPackHandler {
         }
         hash = counter.get();
         new NetworkContentPackHandler(modid, this);
+        
+        if (FMLCommonHandler.instance().getSide().isClient()) {
+            final Minecraft mc = Minecraft.getMinecraft();
+            final List<ResourcePackRepository.Entry> packs = new ArrayList<>();
+            final ResourcePackRepository packRepo = Minecraft.getMinecraft()
+                    .getResourcePackRepository();
+            try {
+                Files.list(contentDirectory).forEach(path -> {
+                    packRepo.setServerResourcePack(path.toFile());
+                    packs.add(packRepo.getResourcePackEntry());
+                });
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            packRepo.setRepositories(packs);
+            mc.refreshResources();
+        }
     }
 
     public long getHash() {
@@ -157,19 +165,4 @@ public class ContentPackHandler {
         });
         return map;
     }
-
-    @SideOnly(Side.CLIENT)
-    public void onResourceManagerReload(IResourceManager resourceManager) {
-        if (resourceManager instanceof SimpleReloadableResourceManager) {
-            final SimpleReloadableResourceManager manager = (SimpleReloadableResourceManager) resourceManager;
-
-            try {
-                Files.list(contentDirectory).forEach(
-                        path -> manager.reloadResourcePack(new FileResourcePack(path.toFile())));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
 }
