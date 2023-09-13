@@ -25,6 +25,7 @@ import com.google.gson.Gson;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.ResourcePackRepository;
+import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 
 public class ContentPackHandler {
@@ -39,7 +40,6 @@ public class ContentPackHandler {
     private final List<Path> paths = new ArrayList<>();
     private final long hash;
 
-    @SuppressWarnings("deprecation")
     public ContentPackHandler(final String modid, final String internalBaseFolder,
             final Logger logger, final Function<String, Path> function) {
         this.modid = modid;
@@ -87,9 +87,8 @@ public class ContentPackHandler {
         }
         hash = counter.get();
         new NetworkContentPackHandler(modid, this);
-        
+
         if (FMLCommonHandler.instance().getSide().isClient()) {
-            final Minecraft mc = Minecraft.getMinecraft();
             final List<ResourcePackRepository.Entry> packs = new ArrayList<>();
             final ResourcePackRepository packRepo = Minecraft.getMinecraft()
                     .getResourcePackRepository();
@@ -102,7 +101,7 @@ public class ContentPackHandler {
                 e.printStackTrace();
             }
             packRepo.setRepositories(packs);
-            mc.refreshResources();
+            FMLClientHandler.instance().refreshResources(t -> true);
         }
     }
 
