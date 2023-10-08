@@ -25,7 +25,6 @@ import com.google.gson.Gson;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.ResourcePackRepository;
-import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 
 public class ContentPackHandler {
@@ -101,7 +100,7 @@ public class ContentPackHandler {
                 e.printStackTrace();
             }
             packRepo.setRepositories(packs);
-            FMLClientHandler.instance().refreshResources(t -> true);
+            packRepo.clearResourcePack();
         }
     }
 
