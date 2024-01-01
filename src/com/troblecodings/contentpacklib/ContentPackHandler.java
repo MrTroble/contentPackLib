@@ -1,5 +1,6 @@
 package com.troblecodings.contentpacklib;
 
+import java.awt.TextComponent;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.FileSystems;
@@ -23,7 +24,6 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
 import net.minecraft.server.packs.repository.Pack;
@@ -84,7 +84,7 @@ public class ContentPackHandler {
                             e.printStackTrace();
                         }
                     });
-        } catch (IOException e) {
+        } catch (final IOException e) {
             e.printStackTrace();
         }
         hash = counter.get();
@@ -101,19 +101,19 @@ public class ContentPackHandler {
         if (!event.getPackType().equals(PackType.CLIENT_RESOURCES))
             return;
         final Map<String, Pack> packs = new HashMap<>();
-        event.addRepositorySource((consumer, instance) -> {
+        event.addRepositorySource((source) -> {
             if (packs.isEmpty()) {
                 for (final Path path : this.paths) {
                     final String fileName = modid + "internal" + packs.size();
                     final Component component = new TextComponent(fileName);
                     packs.put(fileName,
-                            instance.create(fileName, component, true,
+                            source.create(fileName, component, true,
                                     () -> new PathResourcePack(fileName, path),
                                     new PackMetadataSection(component, 8), Position.TOP,
                                     PackSource.DEFAULT, false));
                 }
             }
-            packs.values().forEach(consumer);
+            packs.values().forEach(source);
         });
     }
 
