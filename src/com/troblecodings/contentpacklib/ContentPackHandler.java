@@ -1,6 +1,5 @@
 package com.troblecodings.contentpacklib;
 
-import java.awt.TextComponent;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.FileSystems;
@@ -25,14 +24,12 @@ import com.google.gson.Gson;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
+import net.minecraft.server.packs.repository.FolderRepositorySource;
 import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.Pack.Position;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraftforge.event.AddPackFindersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.resource.PathResourcePack;
 
 public class ContentPackHandler {
 
@@ -101,19 +98,20 @@ public class ContentPackHandler {
         if (!event.getPackType().equals(PackType.CLIENT_RESOURCES))
             return;
         final Map<String, Pack> packs = new HashMap<>();
-        event.addRepositorySource((source) -> {
+        event.addRepositorySource((consumer) -> {
             if (packs.isEmpty()) {
                 for (final Path path : this.paths) {
                     final String fileName = modid + "internal" + packs.size();
-                    final Component component = new TextComponent(fileName);
+                    final Component component = Component.translatable(fileName);
+
                     packs.put(fileName,
-                            source.create(fileName, component, true,
-                                    () -> new PathResourcePack(fileName, path),
-                                    new PackMetadataSection(component, 8), Position.TOP,
-                                    PackSource.DEFAULT, false));
+                            Pack.create(fileName, component, true,
+                                    FolderRepositorySource.detectPackResources(path, true),
+                                    new Pack.Info(component, 8, null), PackType.CLIENT_RESOURCES,
+                                    Pack.Position.TOP, false, PackSource.SERVER));
                 }
             }
-            packs.values().forEach(source);
+            packs.values().forEach(consumer);
         });
     }
 

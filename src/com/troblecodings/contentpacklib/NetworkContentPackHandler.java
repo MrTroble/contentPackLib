@@ -9,7 +9,6 @@ import net.minecraft.network.protocol.game.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.network.ServerPlayerConnection;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
@@ -50,7 +49,7 @@ public class NetworkContentPackHandler {
     public void onPlayerJoin(final PlayerLoggedInEvent event) {
         final ByteBuffer buffer = ByteBuffer.allocate(8);
         buffer.putLong(handler.getHash());
-        sendTo(((ServerPlayerConnection) event).getPlayer(), buffer);
+        sendTo(event.getEntity(), buffer);
     }
 
     private void sendTo(final Player player, final ByteBuffer buf) {
