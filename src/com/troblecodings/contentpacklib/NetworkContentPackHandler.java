@@ -18,10 +18,12 @@ import net.minecraftforge.fml.common.network.internal.FMLProxyPacket;
 public class NetworkContentPackHandler {
 
     private final FMLEventChannel channel;
+    private final String channelName;
     private final ContentPackHandler handler;
 
     public NetworkContentPackHandler(final String modid, final ContentPackHandler handler) {
-        channel = NetworkRegistry.INSTANCE.newEventDrivenChannel(modid + ":CPNet");
+        this.channelName = modid + ":CPNet";
+        channel = NetworkRegistry.INSTANCE.newEventDrivenChannel(channelName);
         this.handler = handler;
         channel.register(this);
         MinecraftForge.EVENT_BUS.register(this);
