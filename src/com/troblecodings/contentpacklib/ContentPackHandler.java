@@ -99,6 +99,7 @@ public class ContentPackHandler {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            packs.addAll(packRepo.getRepositoryEntriesAll());
             packRepo.setRepositories(packs);
             packRepo.clearResourcePack();
         }
