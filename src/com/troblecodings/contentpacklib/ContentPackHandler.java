@@ -77,6 +77,7 @@ public class ContentPackHandler {
                                 final ZipEntry currentEntry = entry;
                                 counter.getAndUpdate(current -> current ^ currentEntry.getCrc());
                             }
+                            stream.close();
                         } catch (final IOException e) {
                             e.printStackTrace();
                         }
@@ -88,9 +89,10 @@ public class ContentPackHandler {
         new NetworkContentPackHandler(modid, this);
 
         if (FMLCommonHandler.instance().getSide().isClient()) {
-            final List<ResourcePackRepository.Entry> packs = new ArrayList<>();
             final ResourcePackRepository packRepo = Minecraft.getMinecraft()
                     .getResourcePackRepository();
+            final List<ResourcePackRepository.Entry> packs = new ArrayList<>(
+                    packRepo.getRepositoryEntries());
             try {
                 Files.list(contentDirectory).forEach(path -> {
                     packRepo.setServerResourcePack(path.toFile());
@@ -99,7 +101,6 @@ public class ContentPackHandler {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            packs.addAll(packRepo.getRepositoryEntriesAll());
             packRepo.setRepositories(packs);
             packRepo.clearResourcePack();
         }
