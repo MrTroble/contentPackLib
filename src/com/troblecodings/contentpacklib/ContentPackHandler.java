@@ -96,7 +96,9 @@ public class ContentPackHandler {
             try {
                 Files.list(contentDirectory).forEach(path -> {
                     packRepo.setServerResourcePack(path.toFile());
-                    packs.add(packRepo.getResourcePackEntry());
+                    final ResourcePackRepository.Entry entry = packRepo.getResourcePackEntry();
+                    if (!packs.contains(entry))
+                        packs.add(entry);
                 });
             } catch (IOException e) {
                 e.printStackTrace();
