@@ -80,6 +80,7 @@ public class ContentPackHandler {
                                 final ZipEntry currentEntry = entry;
                                 counter.getAndUpdate(current -> current ^ currentEntry.getCrc());
                             }
+                            stream.close();
                         } catch (final IOException e) {
                             e.printStackTrace();
                         }
@@ -96,6 +97,7 @@ public class ContentPackHandler {
         return hash;
     }
 
+    @SuppressWarnings("resource")
     @SubscribeEvent
     public void packEvent(final AddPackFindersEvent event) {
         if (!event.getPackType().equals(PackType.CLIENT_RESOURCES))
