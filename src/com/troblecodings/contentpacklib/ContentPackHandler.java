@@ -76,6 +76,7 @@ public class ContentPackHandler {
                                 final ZipEntry currentEntry = entry;
                                 counter.getAndUpdate(current -> current ^ currentEntry.getCrc());
                             }
+                            stream.close();
                         } catch (final IOException e) {
                             e.printStackTrace();
                         }
@@ -90,8 +91,7 @@ public class ContentPackHandler {
 
     private void registerCPsAsResourcePacks() {
         final ResourcePackList list = Minecraft.getInstance().getResourcePackRepository();
-        list.addPackFinder(
-                new CustomFolderPackFinder(contentDirectory.toFile()));
+        list.addPackFinder(new CustomFolderPackFinder(contentDirectory.toFile()));
         list.reload();
     }
 
