@@ -2,15 +2,12 @@ package com.troblecodings.contentpacklib;
 
 import java.nio.ByteBuffer;
 
-import org.apache.logging.log4j.LogManager;
-
 import io.netty.buffer.Unpooled;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.network.play.client.CPacketCustomPayload;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.fml.common.network.FMLEventChannel;
@@ -23,11 +20,9 @@ public class NetworkContentPackHandler {
     private final FMLEventChannel channel;
     private final String channelName;
     private final ContentPackHandler handler;
-    private final String modid;
 
     public NetworkContentPackHandler(final String modid, final ContentPackHandler handler) {
         this.channelName = modid + ":CPNet";
-        this.modid = modid;
         channel = NetworkRegistry.INSTANCE.newEventDrivenChannel(channelName);
         this.handler = handler;
         channel.register(this);
@@ -39,11 +34,10 @@ public class NetworkContentPackHandler {
         final ByteBuffer buffer = event.getPacket().payload().nioBuffer();
         final long serverHash = buffer.getLong();
         if (serverHash != handler.getHash()) {
-            LogManager.getLogger(modid).error("Server and Client Hash are not equal!"
+            throw new ContentPackException("Server and Client Packs are not equal!"
                     + " Please check that you have got the same ContentPacks on Client and Server!"
                     + " Server Hash: [" + serverHash + "], Client Hash: [" + handler.getHash()
                     + "]");
-            FMLCommonHandler.instance().exitJava(0, true);
         }
     }
 
