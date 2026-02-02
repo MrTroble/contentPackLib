@@ -73,10 +73,10 @@ public class ContentPackHandler {
             Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
                     .forEach(path -> {
                         try {
-                            final ZipInputStream stream = new ZipInputStream(
-                                    new FileInputStream(path.toFile()));
-                            for (ZipEntry entry = stream
-                                    .getNextEntry(); entry != null; entry = stream.getNextEntry()) {
+                            final ZipInputStream stream =
+                                    new ZipInputStream(new FileInputStream(path.toFile()));
+                            for (ZipEntry entry = stream.getNextEntry(); entry != null; entry =
+                                    stream.getNextEntry()) {
                                 final ZipEntry currentEntry = entry;
                                 counter.getAndUpdate(current -> current ^ currentEntry.getCrc());
                             }
@@ -97,7 +97,6 @@ public class ContentPackHandler {
         return hash;
     }
 
-    @SuppressWarnings("resource")
     @SubscribeEvent
     public void packEvent(final AddPackFindersEvent event) {
         if (!event.getPackType().equals(PackType.CLIENT_RESOURCES))
