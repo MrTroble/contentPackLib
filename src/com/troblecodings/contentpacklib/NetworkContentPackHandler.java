@@ -33,12 +33,11 @@ public class NetworkContentPackHandler {
     public void serverEvent(final ClientCustomPacketEvent event) {
         final ByteBuffer buffer = event.getPacket().payload().nioBuffer();
         final long serverHash = buffer.getLong();
-        if (serverHash != handler.getHash()) {
+        if (serverHash != handler.getHash())
             throw new ContentPackException("Server and Client Packs are not equal!"
                     + " Please check that you have got the same ContentPacks on Client and Server!"
                     + " Server Hash: [" + serverHash + "], Client Hash: [" + handler.getHash()
                     + "]");
-        }
     }
 
     @SubscribeEvent
@@ -49,8 +48,8 @@ public class NetworkContentPackHandler {
     }
 
     private void sendTo(final EntityPlayer player, final ByteBuffer buf) {
-        final PacketBuffer buffer = new PacketBuffer(
-                Unpooled.copiedBuffer((ByteBuffer) buf.position(0)));
+        final PacketBuffer buffer =
+                new PacketBuffer(Unpooled.copiedBuffer((ByteBuffer) buf.position(0)));
         if (player instanceof EntityPlayerMP) {
             final EntityPlayerMP server = (EntityPlayerMP) player;
             channel.sendTo(new FMLProxyPacket(buffer, channelName), server);
