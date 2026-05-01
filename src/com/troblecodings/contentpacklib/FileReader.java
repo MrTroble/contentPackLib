@@ -61,9 +61,9 @@ public class FileReader {
     }
 
     private void registerCPsAsResourcePacks() {
-        final ResourcePackList<?> list = Minecraft.getInstance().getResourcePackRepository();
-        list.addSource(new CustomFolderPackFinder(contentDirectory.toFile()));
-        list.reload();
+        final ResourcePackList<?> list = Minecraft.getInstance().getResourcePackList();
+        list.addPackFinder(new CustomFolderPackFinder(contentDirectory.toFile()));
+        list.reloadPacksFromFinders();
     }
 
     public List<Path> getPaths() {

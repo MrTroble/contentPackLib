@@ -37,7 +37,8 @@ public class CustomFolderPackFinder implements IPackFinder {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T extends ResourcePackInfo> void loadPacks(Map<String, T> map, IFactory<T> factory) {
+    public <T extends ResourcePackInfo> void addPackInfosToMap(Map<String, T> map,
+            IFactory<T> factory) {
         if (!this.folder.isDirectory()) {
             this.folder.mkdirs();
         }
@@ -46,8 +47,8 @@ public class CustomFolderPackFinder implements IPackFinder {
         if (afile != null) {
             for (final File file1 : afile) {
                 final String s = "CP_" + file1.getName();
-                final ResourcePackInfo resourcepackinfo = ResourcePackInfo.create(s, true,
-                        this.createSupplier(file1), factory, ResourcePackInfo.Priority.TOP);
+                final ResourcePackInfo resourcepackinfo = ResourcePackInfo.createResourcePack(s,
+                        true, this.createSupplier(file1), factory, ResourcePackInfo.Priority.TOP);
                 if (resourcepackinfo != null) {
                     map.put(s, (T) resourcepackinfo);
                 }
