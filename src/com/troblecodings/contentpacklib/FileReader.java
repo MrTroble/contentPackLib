@@ -1,5 +1,6 @@
 package com.troblecodings.contentpacklib;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -10,8 +11,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import org.apache.logging.log4j.Logger;
 
@@ -33,6 +37,7 @@ public class FileReader {
     private final Gson gson;
     private final Path contentDirectory;
     private final List<Path> paths = new ArrayList<>();
+    private final long hash;
 
     public FileReader(final String modid, final String internalBaseFolder, final Logger logger,
             final Function<String, Path> function) {
@@ -57,7 +62,39 @@ public class FileReader {
         } catch (final IOException e) {
             e.printStackTrace();
         }
+        this.hash = computeHash(contentDirectory);
         DistExecutor.runWhenOn(Dist.CLIENT, () -> () -> registerCPsAsResourcePacks());
+    }
+
+    /**
+     * XOR der CRC32-Werte aller Eintraege aller Content-Pack-Zips. Dient nur
+     * der Server/Client-Konsistenzpruefung; muss daher nicht kollisionsfrei
+     * sein, sondern nur reproduzierbar bei identischem Inhalt.
+     */
+    private static long computeHash(final Path contentDirectory) {
+        final AtomicLong counter = new AtomicLong(0L);
+        try {
+            Files.list(contentDirectory).filter(p -> p.toString().endsWith(".zip"))
+                    .forEach(p -> {
+                        try (ZipInputStream stream = new ZipInputStream(
+                                new FileInputStream(p.toFile()))) {
+                            for (ZipEntry e = stream.getNextEntry(); e != null;
+                                    e = stream.getNextEntry()) {
+                                final ZipEntry curr = e;
+                                counter.getAndUpdate(c -> c ^ curr.getCrc());
+                            }
+                        } catch (final IOException ex) {
+                            ex.printStackTrace();
+                        }
+                    });
+        } catch (final IOException ex) {
+            ex.printStackTrace();
+        }
+        return counter.get();
+    }
+
+    public long getHash() {
+        return hash;
     }
 
     private void registerCPsAsResourcePacks() {
