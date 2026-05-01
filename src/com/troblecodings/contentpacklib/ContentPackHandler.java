@@ -121,6 +121,13 @@ public class ContentPackHandler {
     public List<Entry<String, String>> getFiles(final List<Path> paths) {
         final List<Entry<String, String>> files = new ArrayList<>();
         paths.forEach(path -> {
+            // Optional-Resource-Tolerance: ein Mod, der zB. keine
+            // armordefinitions hat, bekommt fuer den internen Lookup einen
+            // null-Pfad zurueck. Wir ignorieren das hier, statt NPE zu
+            // werfen.
+            if (path == null) {
+                return;
+            }
             try {
                 if (!(Files.exists(path) && Files.isDirectory(path)))
                     return;
