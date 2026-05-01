@@ -90,9 +90,13 @@ public class ContentPackHandler {
     }
 
     private void registerCPsAsResourcePacks() {
-        final ResourcePackList list = Minecraft.getInstance().getResourcePackRepository();
+        // 1.16.5-MCP-Mappings: Minecraft#getResourcePackList und
+        // ResourcePackList#reloadPacksFromFinders. In neueren MC-Versionen
+        // (Mojang-Mappings) heisst das getResourcePackRepository#reload --
+        // hier passt der MCP-Snapshot-Name zu unserem build.gradle.
+        final ResourcePackList list = Minecraft.getInstance().getResourcePackList();
         list.addPackFinder(new CustomFolderPackFinder(contentDirectory.toFile()));
-        list.reload();
+        list.reloadPacksFromFinders();
     }
 
     public long getHash() {

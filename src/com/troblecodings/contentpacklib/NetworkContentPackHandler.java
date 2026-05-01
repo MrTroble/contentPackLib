@@ -52,13 +52,15 @@ public class NetworkContentPackHandler {
     }
 
     private void sendTo(final PlayerEntity player, final ByteBuffer buf) {
+        // 1.16.5-MCP: NetHandler#sendPacket (war einfach send in den vom
+        // Upstream genutzten Mappings).
         final PacketBuffer buffer = new PacketBuffer(Unpooled.copiedBuffer(buf.array()));
         if (player instanceof ServerPlayerEntity) {
             final ServerPlayerEntity server = (ServerPlayerEntity) player;
-            server.connection.send(new SCustomPayloadPlayPacket(channelName, buffer));
+            server.connection.sendPacket(new SCustomPayloadPlayPacket(channelName, buffer));
         } else {
             final Minecraft mc = Minecraft.getInstance();
-            mc.getConnection().send(new CCustomPayloadPacket(channelName, buffer));
+            mc.getConnection().sendPacket(new CCustomPayloadPacket(channelName, buffer));
         }
     }
 }

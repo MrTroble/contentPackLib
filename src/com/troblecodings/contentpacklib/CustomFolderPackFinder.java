@@ -37,7 +37,9 @@ public class CustomFolderPackFinder implements IPackFinder {
     }
 
     @Override
-    public void loadPacks(Consumer<ResourcePackInfo> consumer, IFactory factory) {
+    public void findPacks(Consumer<ResourcePackInfo> consumer, IFactory factory) {
+        // 1.16.5-MCP: Methode heisst findPacks (war loadPacks in 1.14).
+        // IPackNameDecorator.PLAIN ersetzt das frueher genutzte DEFAULT.
         if (!this.folder.isDirectory()) {
             this.folder.mkdirs();
         }
@@ -45,9 +47,9 @@ public class CustomFolderPackFinder implements IPackFinder {
         if (files != null) {
             for (final File file : files) {
                 final String s = "CP_" + file.getName();
-                final ResourcePackInfo resourcepackinfo = ResourcePackInfo.create(s, true,
-                        this.createSupplier(file), factory, ResourcePackInfo.Priority.TOP,
-                        IPackNameDecorator.DEFAULT);
+                final ResourcePackInfo resourcepackinfo = ResourcePackInfo.createResourcePack(s,
+                        true, this.createSupplier(file), factory, ResourcePackInfo.Priority.TOP,
+                        IPackNameDecorator.PLAIN);
                 if (resourcepackinfo != null) {
                     consumer.accept(resourcepackinfo);
                 }
