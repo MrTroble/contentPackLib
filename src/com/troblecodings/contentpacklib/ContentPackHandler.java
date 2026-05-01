@@ -22,8 +22,9 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
-import net.minecraft.server.packs.FolderPackResources;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.PathPackResources;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraftforge.event.AddPackFindersEvent;
@@ -96,17 +97,21 @@ public class ContentPackHandler {
     public void packEvent(final AddPackFindersEvent event) {
         if (!event.getPackType().equals(PackType.CLIENT_RESOURCES))
             return;
-        // 1.19.2-Pack-API: Pack.create nimmt Supplier<PackResources> +
-        // PackConstructor + PackSource; FolderPackResources liest aus
-        // einem Verzeichnis. Ein Paket pro extrahiertem ContentPack-Pfad.
-        event.addRepositorySource((consumer, packConstructor) -> {
+        // 1.19.4-Pack-API: RepositorySource#loadPacks ist single-arg
+        // (Consumer<Pack>), Pack.PackConstructor existiert nicht mehr.
+        // Pack.readMetaAndCreate liest pack.mcmeta selber aus den
+        // PathPackResources-Inhalten und baut den Pack.Info dazu --
+        // ContentPack-Zips bringen ihre eigene pack.mcmeta mit.
+        event.addRepositorySource(consumer -> {
             int idx = 0;
             for (final Path path : this.paths) {
                 final String fileName = modid + "internal" + idx;
                 idx++;
-                final Pack pack = Pack.create(fileName, true,
-                        () -> new FolderPackResources(path.toFile()),
-                        packConstructor, Pack.Position.TOP, PackSource.BUILT_IN);
+                final Pack pack = Pack.readMetaAndCreate(fileName,
+                        Component.literal(fileName), true,
+                        name -> new PathPackResources(name, path, true),
+                        PackType.CLIENT_RESOURCES, Pack.Position.TOP,
+                        PackSource.BUILT_IN);
                 if (pack != null) {
                     consumer.accept(pack);
                 }
