@@ -24,12 +24,12 @@ import com.google.gson.Gson;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.PathPackResources;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraftforge.event.AddPackFindersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.resource.PathPackResources;
 
 public class ContentPackHandler {
 
@@ -98,19 +98,23 @@ public class ContentPackHandler {
         if (!event.getPackType().equals(PackType.CLIENT_RESOURCES))
             return;
         // 1.19.4-Pack-API: RepositorySource#loadPacks ist single-arg
-        // (Consumer<Pack>), Pack.PackConstructor existiert nicht mehr.
-        // Pack.readMetaAndCreate liest pack.mcmeta selber aus den
-        // PathPackResources-Inhalten und baut den Pack.Info dazu --
-        // ContentPack-Zips bringen ihre eigene pack.mcmeta mit.
+        // (Consumer<Pack>), Pack.PackConstructor existiert nicht mehr. Wir
+        // umgehen Pack.readMetaAndCreate (liest pack.mcmeta vor und kann an
+        // Format-Mismatch zwischen Pack-Inhalt und MC-Version scheitern,
+        // wodurch ContentPacks komplett aus dem Loader fallen) und bauen
+        // Pack.Info selbst -- mit dem 1.19.4-Resource-Format 13. Forge's
+        // PathPackResources ist die mod-bundled-Variante, die mit den
+        // FileSystem-Paths aus eingebundenen Zips zurechtkommt.
         event.addRepositorySource(consumer -> {
             int idx = 0;
             for (final Path path : this.paths) {
                 final String fileName = modid + "internal" + idx;
                 idx++;
-                final Pack pack = Pack.readMetaAndCreate(fileName,
-                        Component.literal(fileName), true,
-                        name -> new PathPackResources(name, path, true),
-                        PackType.CLIENT_RESOURCES, Pack.Position.TOP,
+                final Pack.Info info = new Pack.Info(Component.literal(fileName), 13,
+                        net.minecraft.world.flag.FeatureFlagSet.of());
+                final Pack pack = Pack.create(fileName, Component.literal(fileName), true,
+                        name -> new PathPackResources(name, true, path), info,
+                        PackType.CLIENT_RESOURCES, Pack.Position.TOP, false,
                         PackSource.BUILT_IN);
                 if (pack != null) {
                     consumer.accept(pack);
