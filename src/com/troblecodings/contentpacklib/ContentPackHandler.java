@@ -110,7 +110,7 @@ public class ContentPackHandler {
             for (final Path path : this.paths) {
                 final String fileName = modid + "internal" + idx;
                 idx++;
-                final Pack.Info info = new Pack.Info(Component.literal(fileName), 13,
+                final Pack.Info info = new Pack.Info(Component.literal(fileName), 15,
                         net.minecraft.world.flag.FeatureFlagSet.of());
                 final Pack pack = Pack.create(fileName, Component.literal(fileName), true,
                         name -> new PathPackResources(name, true, path), info,
