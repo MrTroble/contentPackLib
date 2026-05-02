@@ -3,7 +3,7 @@ package com.troblecodings.contentpacklib;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -30,7 +30,7 @@ public class NetworkContentPackHandler {
             final IEventBus modBus) {
         this.handler = handler;
         this.payloadType = new CustomPacketPayload.Type<>(
-                ResourceLocation.fromNamespaceAndPath(modid, "contentpackhandler"));
+                Identifier.fromNamespaceAndPath(modid, "contentpackhandler"));
         modBus.register(this);
         NeoForge.EVENT_BUS.addListener(this::onPlayerJoin);
     }
@@ -64,7 +64,7 @@ public class NetworkContentPackHandler {
 
     /**
      * Custom-Payload-Record mit 8-Byte-Hash. Der Type wird zur Konstruktionszeit (im
-     * NetworkContentPackHandler-Ctor) gebaut, damit der modid-spezifische ResourceLocation
+     * NetworkContentPackHandler-Ctor) gebaut, damit der modid-spezifische Identifier
      * pro Instanz korrekt ist und mehrere Mods, die contentpacklib einbinden, kollisionsfrei
      * koexistieren.
      */
