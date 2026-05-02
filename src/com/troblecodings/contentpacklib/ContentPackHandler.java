@@ -25,6 +25,7 @@ import com.google.gson.Gson;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.repository.PackCompatibility;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraftforge.event.AddPackFindersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -97,25 +98,33 @@ public class ContentPackHandler {
     public void packEvent(final AddPackFindersEvent event) {
         if (!event.getPackType().equals(PackType.CLIENT_RESOURCES))
             return;
-        // 1.19.4-Pack-API: RepositorySource#loadPacks ist single-arg
-        // (Consumer<Pack>), Pack.PackConstructor existiert nicht mehr. Wir
-        // umgehen Pack.readMetaAndCreate (liest pack.mcmeta vor und kann an
-        // Format-Mismatch zwischen Pack-Inhalt und MC-Version scheitern,
-        // wodurch ContentPacks komplett aus dem Loader fallen) und bauen
-        // Pack.Info selbst -- mit dem 1.19.4-Resource-Format 13. Forge's
-        // PathPackResources ist die mod-bundled-Variante, die mit den
-        // FileSystem-Paths aus eingebundenen Zips zurechtkommt.
+        // 1.20.4-Pack-API: Pack.Info nimmt PackCompatibility direkt (kein int format mehr) und
+        // eine overlays-Liste; Pack.create hat keinen PackType-Parameter mehr (er ergibt sich
+        // aus dem Pack.Info / Source). Wir setzen COMPATIBLE fest, damit alte ContentPacks mit
+        // anderem pack.mcmeta-Format nicht aus dem Loader fallen. Forge's PathPackResources ist
+        // die mod-bundled-Variante, die mit den FileSystem-Paths aus eingebundenen Zips zurechtkommt.
         event.addRepositorySource(consumer -> {
             int idx = 0;
             for (final Path path : this.paths) {
                 final String fileName = modid + "internal" + idx;
                 idx++;
-                final Pack.Info info = new Pack.Info(Component.literal(fileName), 15,
-                        net.minecraft.world.flag.FeatureFlagSet.of());
+                final Pack.Info info = new Pack.Info(Component.literal(fileName),
+                        PackCompatibility.COMPATIBLE,
+                        net.minecraft.world.flag.FeatureFlagSet.of(), List.of());
+                final Pack.ResourcesSupplier supplier = new Pack.ResourcesSupplier() {
+                    @Override
+                    public net.minecraft.server.packs.PackResources openPrimary(final String name) {
+                        return new PathPackResources(name, true, path);
+                    }
+
+                    @Override
+                    public net.minecraft.server.packs.PackResources openFull(final String name,
+                            final Pack.Info pInfo) {
+                        return openPrimary(name);
+                    }
+                };
                 final Pack pack = Pack.create(fileName, Component.literal(fileName), true,
-                        name -> new PathPackResources(name, true, path), info,
-                        PackType.CLIENT_RESOURCES, Pack.Position.TOP, false,
-                        PackSource.BUILT_IN);
+                        supplier, info, Pack.Position.TOP, false, PackSource.BUILT_IN);
                 if (pack != null) {
                     consumer.accept(pack);
                 }
