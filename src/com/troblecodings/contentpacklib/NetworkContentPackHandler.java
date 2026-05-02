@@ -9,7 +9,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.event.network.CustomPayloadEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.network.ChannelBuilder;
 import net.minecraftforge.network.EventNetworkChannel;
 import net.minecraftforge.network.PacketDistributor;
@@ -20,6 +19,12 @@ import net.minecraftforge.network.PacketDistributor;
  * {@link CustomPayloadEvent} (Server-/Client-Spaltung entfaellt) und versendet wird ueber
  * {@code channel.send(buf, PacketDistributor.PLAYER.with(...))}. Der Inhalt bleibt unveraendert
  * ein 8-Byte-Hash, der beim Login vom Server zum Client geschickt und auf Gleichheit geprueft wird.
+ *
+ * <p>Wichtig: der Payload-Handler haengt am {@link EventNetworkChannel} (channel-gefiltert), der
+ * Player-Join-Handler am globalen Event-Bus. Ein {@code registerObject(this)} + zusaetzliches
+ * {@code EVENT_BUS.register(this)} wuerde {@code onPayload} doppelt registrieren -- einmal
+ * channel-gefiltert, einmal global -- und der globale Aufruf bekaeme bei fremden Payloads
+ * {@code event.getPayload() == null} und wuerde NPEen.
  */
 public class NetworkContentPackHandler {
 
@@ -32,12 +37,11 @@ public class NetworkContentPackHandler {
                 .optional()
                 .eventNetworkChannel();
         this.handler = handler;
-        channel.registerObject(this);
-        MinecraftForge.EVENT_BUS.register(this);
+        channel.addListener(this::onPayload);
+        MinecraftForge.EVENT_BUS.addListener(this::onPlayerJoin);
     }
 
-    @SubscribeEvent
-    public void onPayload(final CustomPayloadEvent event) {
+    private void onPayload(final CustomPayloadEvent event) {
         final ByteBuffer buffer = event.getPayload().nioBuffer();
         final long serverHash = buffer.getLong();
         if (serverHash != handler.getHash()) {
@@ -49,8 +53,7 @@ public class NetworkContentPackHandler {
         event.getSource().setPacketHandled(true);
     }
 
-    @SubscribeEvent
-    public void onPlayerJoin(final PlayerLoggedInEvent event) {
+    private void onPlayerJoin(final PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer server)) {
             return;
         }
