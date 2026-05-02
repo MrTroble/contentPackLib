@@ -1,66 +1,90 @@
 package com.troblecodings.contentpacklib;
 
-import java.nio.ByteBuffer;
-
-import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
-import net.minecraftforge.event.network.CustomPayloadEvent;
-import net.minecraftforge.network.ChannelBuilder;
-import net.minecraftforge.network.EventNetworkChannel;
-import net.minecraftforge.network.PacketDistributor;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.network.handling.IPayloadHandler;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 /**
- * In 1.20.4 ist der Custom-Payload-Stack komplett umgebaut. {@code NetworkRegistry.newEventChannel}
- * existiert nicht mehr -- Channels werden via {@link ChannelBuilder} aufgebaut, das Event heisst
- * {@link CustomPayloadEvent} (Server-/Client-Spaltung entfaellt) und versendet wird ueber
- * {@code channel.send(buf, PacketDistributor.PLAYER.with(...))}. Der Inhalt bleibt unveraendert
- * ein 8-Byte-Hash, der beim Login vom Server zum Client geschickt und auf Gleichheit geprueft wird.
- *
- * <p>Wichtig: der Payload-Handler haengt am {@link EventNetworkChannel} (channel-gefiltert), der
- * Player-Join-Handler am globalen Event-Bus. Ein {@code registerObject(this)} + zusaetzliches
- * {@code EVENT_BUS.register(this)} wuerde {@code onPayload} doppelt registrieren -- einmal
- * channel-gefiltert, einmal global -- und der globale Aufruf bekaeme bei fremden Payloads
- * {@code event.getPayload() == null} und wuerde NPEen.
+ * NeoForge 1.21 ersetzt das Forge-Channel-System komplett: Payloads sind {@link
+ * CustomPacketPayload}-Records, registriert ueber {@link RegisterPayloadHandlersEvent}.
+ * Wir packen den 8-Byte-Hash in einen Payload-Record, registrieren beim Player-Login einen
+ * Send vom Server an den Client und vergleichen client-seitig den Hash mit unserem lokalen.
  */
 public class NetworkContentPackHandler {
 
-    private final EventNetworkChannel channel;
     private final ContentPackHandler handler;
+    private final CustomPacketPayload.Type<HashPayload> payloadType;
 
-    public NetworkContentPackHandler(final String modid, final ContentPackHandler handler) {
-        final ResourceLocation channelName = new ResourceLocation(modid, "contentpackhandler");
-        this.channel = ChannelBuilder.named(channelName)
-                .optional()
-                .eventNetworkChannel();
+    public NetworkContentPackHandler(final String modid, final ContentPackHandler handler,
+            final IEventBus modBus) {
         this.handler = handler;
-        channel.addListener(this::onPayload);
-        MinecraftForge.EVENT_BUS.addListener(this::onPlayerJoin);
+        this.payloadType = new CustomPacketPayload.Type<>(
+                ResourceLocation.fromNamespaceAndPath(modid, "contentpackhandler"));
+        modBus.register(this);
+        NeoForge.EVENT_BUS.addListener(this::onPlayerJoin);
     }
 
-    private void onPayload(final CustomPayloadEvent event) {
-        final ByteBuffer buffer = event.getPayload().nioBuffer();
-        final long serverHash = buffer.getLong();
-        if (serverHash != handler.getHash()) {
+    @SubscribeEvent
+    public void onRegisterPayloads(final RegisterPayloadHandlersEvent event) {
+        final PayloadRegistrar registrar = event.registrar("1");
+        final IPayloadHandler<HashPayload> clientHandler = (payload, ctx) -> verify(payload);
+        registrar.playToClient(payloadType,
+                StreamCodec.of(
+                        (buf, pl) -> buf.writeLong(pl.hash),
+                        buf -> new HashPayload(buf.readLong(), payloadType)),
+                clientHandler);
+    }
+
+    private void verify(final HashPayload payload) {
+        if (payload.hash != handler.getHash()) {
             throw new IllegalArgumentException("Server and Client Hash are not equal!"
                     + " Please check that you have got the same ContentPacks on Client and Server!"
-                    + " Server Hash: [" + serverHash + "], Client Hash: [" + handler.getHash()
+                    + " Server Hash: [" + payload.hash + "], Client Hash: [" + handler.getHash()
                     + "]");
         }
-        event.getSource().setPacketHandled(true);
     }
 
     private void onPlayerJoin(final PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer server)) {
             return;
         }
-        final ByteBuffer buffer = ByteBuffer.allocate(8);
-        buffer.putLong(handler.getHash());
-        final FriendlyByteBuf friendly = new FriendlyByteBuf(
-                Unpooled.copiedBuffer(buffer.position(0)));
-        channel.send(friendly, PacketDistributor.PLAYER.with(server));
+        PacketDistributor.sendToPlayer(server, new HashPayload(handler.getHash(), payloadType));
+    }
+
+    /**
+     * Custom-Payload-Record mit 8-Byte-Hash. Der Type wird zur Konstruktionszeit (im
+     * NetworkContentPackHandler-Ctor) gebaut, damit der modid-spezifische ResourceLocation
+     * pro Instanz korrekt ist und mehrere Mods, die contentpacklib einbinden, kollisionsfrei
+     * koexistieren.
+     */
+    public static final class HashPayload implements CustomPacketPayload {
+
+        private final long hash;
+        private final CustomPacketPayload.Type<HashPayload> type;
+
+        HashPayload(final long hash, final CustomPacketPayload.Type<HashPayload> type) {
+            this.hash = hash;
+            this.type = type;
+        }
+
+        public long hash() {
+            return hash;
+        }
+
+        @Override
+        public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+            return type;
+        }
     }
 }
