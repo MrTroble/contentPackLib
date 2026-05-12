@@ -20,19 +20,13 @@ import java.util.zip.ZipInputStream;
 
 import org.apache.logging.log4j.Logger;
 
+import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
-import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.Pack.Position;
-import net.minecraft.server.packs.repository.PackSource;
-import net.minecraftforge.event.AddPackFindersEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.resource.PathResourcePack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourcePackList;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 
 public class ContentPackHandler {
 
@@ -58,8 +52,9 @@ public class ContentPackHandler {
             Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
                     .forEach(path -> {
                         try {
-                            paths.add(FileSystems.newFileSystem(path).getRootDirectories()
-                                    .iterator().next());
+                            paths.add(FileSystems
+                                    .newFileSystem(path, ClassLoader.getSystemClassLoader())
+                                    .getRootDirectories().iterator().next());
                         } catch (final IOException e) {
                             logger.error(String.format("Could not load %s!", path.toString()), e);
                         }
@@ -68,54 +63,41 @@ public class ContentPackHandler {
             e.printStackTrace();
         }
         Collections.sort(paths, (path1, path2) -> path1.compareTo(path2));
-        final AtomicLong counter = new AtomicLong(0);
+        this.hash = computeHash(contentDirectory);
+        DistExecutor.runWhenOn(Dist.CLIENT, () -> () -> registerCPsAsResourcePacks());
+        new NetworkContentPackHandler(modid, this);
+    }
+
+    private static long computeHash(final Path contentDirectory) {
+        final AtomicLong counter = new AtomicLong(0L);
         try {
-            Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
-                    .forEach(path -> {
-                        try {
-                            final ZipInputStream stream =
-                                    new ZipInputStream(new FileInputStream(path.toFile()));
-                            for (ZipEntry entry = stream.getNextEntry(); entry != null; entry =
-                                    stream.getNextEntry()) {
-                                final ZipEntry currentEntry = entry;
-                                counter.getAndUpdate(current -> current ^ currentEntry.getCrc());
+            Files.list(contentDirectory).filter(p -> p.toString().endsWith(".zip"))
+                    .forEach(p -> {
+                        try (ZipInputStream stream = new ZipInputStream(
+                                new FileInputStream(p.toFile()))) {
+                            for (ZipEntry e = stream.getNextEntry(); e != null;
+                                    e = stream.getNextEntry()) {
+                                final ZipEntry curr = e;
+                                counter.getAndUpdate(c -> c ^ curr.getCrc());
                             }
-                            stream.close();
-                        } catch (final IOException e) {
-                            e.printStackTrace();
+                        } catch (final IOException ex) {
+                            ex.printStackTrace();
                         }
                     });
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (final IOException ex) {
+            ex.printStackTrace();
         }
-        hash = counter.get();
-        FMLJavaModLoadingContext.get().getModEventBus().register(this);
-        new NetworkContentPackHandler(modid, this);
+        return counter.get();
     }
 
     public long getHash() {
         return hash;
     }
 
-    @SubscribeEvent
-    public void packEvent(final AddPackFindersEvent event) {
-        if (!event.getPackType().equals(PackType.CLIENT_RESOURCES))
-            return;
-        final Map<String, Pack> packs = new HashMap<>();
-        event.addRepositorySource((consumer, instance) -> {
-            if (packs.isEmpty()) {
-                for (final Path path : this.paths) {
-                    final String fileName = modid + "internal" + packs.size();
-                    final Component component = new TextComponent(fileName);
-                    packs.put(fileName,
-                            instance.create(fileName, component, true,
-                                    () -> new PathResourcePack(fileName, path),
-                                    new PackMetadataSection(component, 8), Position.TOP,
-                                    PackSource.DEFAULT, false));
-                }
-            }
-            packs.values().forEach(consumer);
-        });
+    private void registerCPsAsResourcePacks() {
+        final ResourcePackList<?> list = Minecraft.getInstance().getResourcePackList();
+        list.addPackFinder(new CustomFolderPackFinder(contentDirectory.toFile()));
+        list.reloadPacksFromFinders();
     }
 
     public List<Path> getPaths() {
@@ -137,14 +119,14 @@ public class ContentPackHandler {
         final List<Entry<String, String>> files = new ArrayList<>();
         paths.forEach(path -> {
             try {
-                if (!(Files.exists(path) && Files.isDirectory(path)))
+                if (path == null || !(Files.exists(path) && Files.isDirectory(path)))
                     return;
                 final Stream<Path> inputs = Files.list(path);
                 inputs.forEach(file -> {
                     try {
                         final String content = new String(Files.readAllBytes(file));
                         final String name = file.getFileName().toString();
-                        files.add(Map.entry(name, content));
+                        files.add(Maps.immutableEntry(name, content));
                     } catch (final IOException e) {
                         logger.warn("There was a problem during reading " + file + " !");
                         e.printStackTrace();
