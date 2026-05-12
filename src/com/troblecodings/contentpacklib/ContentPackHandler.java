@@ -119,7 +119,7 @@ public class ContentPackHandler {
         final List<Entry<String, String>> files = new ArrayList<>();
         paths.forEach(path -> {
             try {
-                if (!(Files.exists(path) && Files.isDirectory(path)))
+                if (path == null || !(Files.exists(path) && Files.isDirectory(path)))
                     return;
                 final Stream<Path> inputs = Files.list(path);
                 inputs.forEach(file -> {
