@@ -22,17 +22,19 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import java.util.Optional;
+
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
+import net.minecraft.server.packs.PackLocationInfo;
+import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
+import net.minecraft.server.packs.PathPackResources;
 import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.Pack.Position;
+import net.minecraft.server.packs.repository.PackCompatibility;
 import net.minecraft.server.packs.repository.PackSource;
-import net.minecraftforge.event.AddPackFindersEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.resource.PathResourcePack;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.AddPackFindersEvent;
 
 public class ContentPackHandler {
 
@@ -46,7 +48,7 @@ public class ContentPackHandler {
     private final long hash;
 
     public ContentPackHandler(final String modid, final String internalBaseFolder,
-            final Logger logger, final Function<String, Path> function) {
+            final Logger logger, final Function<String, Path> function, final IEventBus modBus) {
         this.modid = modid;
         this.internalBaseFolder = internalBaseFolder;
         this.logger = logger;
@@ -85,12 +87,12 @@ public class ContentPackHandler {
                             e.printStackTrace();
                         }
                     });
-        } catch (IOException e) {
+        } catch (final IOException e) {
             e.printStackTrace();
         }
         hash = counter.get();
-        FMLJavaModLoadingContext.get().getModEventBus().register(this);
-        new NetworkContentPackHandler(modid, this);
+        modBus.register(this);
+        new NetworkContentPackHandler(modid, this, modBus);
     }
 
     public long getHash() {
@@ -101,20 +103,40 @@ public class ContentPackHandler {
     public void packEvent(final AddPackFindersEvent event) {
         if (!event.getPackType().equals(PackType.CLIENT_RESOURCES))
             return;
-        final Map<String, Pack> packs = new HashMap<>();
-        event.addRepositorySource((consumer, instance) -> {
-            if (packs.isEmpty()) {
-                for (final Path path : this.paths) {
-                    final String fileName = modid + "internal" + packs.size();
-                    final Component component = new TextComponent(fileName);
-                    packs.put(fileName,
-                            instance.create(fileName, component, true,
-                                    () -> new PathResourcePack(fileName, path),
-                                    new PackMetadataSection(component, 8), Position.TOP,
-                                    PackSource.DEFAULT, false));
-                }
+        // 1.21-Pack-API: Pack.Info heisst jetzt Pack.Metadata, Pack-Erzeugung geht ueber den
+        // Konstruktor (kein static .create mehr). PackLocationInfo + PackSelectionConfig
+        // buendeln id/title/source bzw. required/position/fixedPosition. Pack.ResourcesSupplier
+        // hat zwei abstrakte Methoden (openPrimary/openFull); vanilla PathPackResources nimmt
+        // selber einen PackLocationInfo entgegen. PackCompatibility.COMPATIBLE fest, damit
+        // ContentPacks mit aelterem pack.mcmeta-Format nicht aus dem Loader fallen.
+        event.addRepositorySource(consumer -> {
+            int idx = 0;
+            for (final Path path : this.paths) {
+                final String fileName = modid + "internal" + idx;
+                idx++;
+                final PackLocationInfo location = new PackLocationInfo(fileName,
+                        Component.literal(fileName), PackSource.BUILT_IN, Optional.empty());
+                final Pack.Metadata metadata = new Pack.Metadata(Component.literal(fileName),
+                        PackCompatibility.COMPATIBLE,
+                        net.minecraft.world.flag.FeatureFlagSet.of(), List.of());
+                final PackSelectionConfig selection = new PackSelectionConfig(true,
+                        Pack.Position.TOP, false);
+                final Pack.ResourcesSupplier supplier = new Pack.ResourcesSupplier() {
+                    @Override
+                    public net.minecraft.server.packs.PackResources openPrimary(
+                            final PackLocationInfo loc) {
+                        return new PathPackResources(loc, path);
+                    }
+
+                    @Override
+                    public net.minecraft.server.packs.PackResources openFull(
+                            final PackLocationInfo loc, final Pack.Metadata md) {
+                        return openPrimary(loc);
+                    }
+                };
+                final Pack pack = new Pack(location, supplier, metadata, selection);
+                consumer.accept(pack);
             }
-            packs.values().forEach(consumer);
         });
     }
 
@@ -136,6 +158,11 @@ public class ContentPackHandler {
     public List<Entry<String, String>> getFiles(final List<Path> paths) {
         final List<Entry<String, String>> files = new ArrayList<>();
         paths.forEach(path -> {
+            // Optional-Resource-Tolerance: ein Mod, der zB. keine armordefinitions hat, bekommt
+            // fuer den internen Lookup einen null-Pfad zurueck. Ignorieren statt NPE.
+            if (path == null) {
+                return;
+            }
             try {
                 if (!(Files.exists(path) && Files.isDirectory(path)))
                     return;
