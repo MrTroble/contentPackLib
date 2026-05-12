@@ -48,7 +48,7 @@ public class NetworkContentPackHandler {
 
     private void verify(final HashPayload payload) {
         if (payload.hash != handler.getHash()) {
-            throw new IllegalArgumentException("Server and Client Hash are not equal!"
+            throw new ContentPackException("Server and Client Hash are not equal!"
                     + " Please check that you have got the same ContentPacks on Client and Server!"
                     + " Server Hash: [" + payload.hash + "], Client Hash: [" + handler.getHash()
                     + "]");
