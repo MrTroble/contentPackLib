@@ -22,9 +22,8 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
-import net.minecraft.network.chat.Component;
+import net.minecraft.server.packs.FolderPackResources;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.repository.FolderRepositorySource;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraftforge.event.AddPackFindersEvent;
@@ -97,21 +96,21 @@ public class ContentPackHandler {
     public void packEvent(final AddPackFindersEvent event) {
         if (!event.getPackType().equals(PackType.CLIENT_RESOURCES))
             return;
-        final Map<String, Pack> packs = new HashMap<>();
-        event.addRepositorySource((consumer) -> {
-            if (packs.isEmpty()) {
-                for (final Path path : this.paths) {
-                    final String fileName = modid + "internal" + packs.size();
-                    final Component component = Component.translatable(fileName);
-
-                    packs.put(fileName,
-                            Pack.create(fileName, component, true,
-                                    FolderRepositorySource.detectPackResources(path, true),
-                                    new Pack.Info(component, 8, null), PackType.CLIENT_RESOURCES,
-                                    Pack.Position.TOP, false, PackSource.SERVER));
+        // 1.19.2-Pack-API: Pack.create nimmt Supplier<PackResources> +
+        // PackConstructor + PackSource; FolderPackResources liest aus
+        // einem Verzeichnis. Ein Paket pro extrahiertem ContentPack-Pfad.
+        event.addRepositorySource((consumer, packConstructor) -> {
+            int idx = 0;
+            for (final Path path : this.paths) {
+                final String fileName = modid + "internal" + idx;
+                idx++;
+                final Pack pack = Pack.create(fileName, true,
+                        () -> new FolderPackResources(path.toFile()),
+                        packConstructor, Pack.Position.TOP, PackSource.BUILT_IN);
+                if (pack != null) {
+                    consumer.accept(pack);
                 }
             }
-            packs.values().forEach(consumer);
         });
     }
 
@@ -133,6 +132,13 @@ public class ContentPackHandler {
     public List<Entry<String, String>> getFiles(final List<Path> paths) {
         final List<Entry<String, String>> files = new ArrayList<>();
         paths.forEach(path -> {
+            // Optional-Resource-Tolerance: ein Mod, der zB. keine
+            // armordefinitions hat, bekommt fuer den internen Lookup einen
+            // null-Pfad zurueck. Wir ignorieren das hier, statt NPE zu
+            // werfen.
+            if (path == null) {
+                return;
+            }
             try {
                 if (!(Files.exists(path) && Files.isDirectory(path)))
                     return;
