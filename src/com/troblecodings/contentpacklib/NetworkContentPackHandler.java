@@ -1,64 +1,70 @@
 package com.troblecodings.contentpacklib;
 
-import java.nio.ByteBuffer;
+import java.util.function.Supplier;
 
-import io.netty.buffer.Unpooled;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.protocol.game.ClientboundCustomPayloadPacket;
-import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.network.NetworkEvent.ServerCustomPayloadEvent;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.event.EventNetworkChannel;
+import net.minecraftforge.fml.network.NetworkEvent;
+import net.minecraftforge.fml.network.NetworkRegistry;
+import net.minecraftforge.fml.network.PacketDistributor;
+import net.minecraftforge.fml.network.simple.SimpleChannel;
 
 public class NetworkContentPackHandler {
 
-    private final EventNetworkChannel channel;
-    private final ResourceLocation channelName;
+    private static final String PROTOCOL_VERSION = "1";
+
     private final ContentPackHandler handler;
+    private final SimpleChannel channel;
 
     public NetworkContentPackHandler(final String modid, final ContentPackHandler handler) {
-        this.channelName = new ResourceLocation(modid, "contentpackhandler");
-        this.channel = NetworkRegistry.newEventChannel(channelName, () -> modid,
-                modid::equalsIgnoreCase, modid::equalsIgnoreCase);
         this.handler = handler;
-        channel.registerObject(this);
+        this.channel = NetworkRegistry.newSimpleChannel(
+                new ResourceLocation(modid, "cpnet"),
+                () -> PROTOCOL_VERSION,
+                PROTOCOL_VERSION::equals,
+                PROTOCOL_VERSION::equals);
+        this.channel.registerMessage(0, HashPacket.class, HashPacket::encode, HashPacket::decode,
+                this::handleHash);
         MinecraftForge.EVENT_BUS.register(this);
     }
 
     @SubscribeEvent
-    public void serverEvent(final ServerCustomPayloadEvent event) {
-        final ByteBuffer buffer = event.getPayload().nioBuffer();
-        final long serverHash = buffer.getLong();
-        if (serverHash != handler.getHash())
-            throw new ContentPackException("Server and Client Hash are not equal!"
-                    + " Please check that you have got the same ContentPacks on Client and Server!"
-                    + " Server Hash: [" + serverHash + "], Client Hash: [" + handler.getHash()
-                    + "]");
-        event.getSource().get().setPacketHandled(true);
+    public void onPlayerLoggedIn(final PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getPlayer() instanceof ServerPlayerEntity) {
+            final ServerPlayerEntity sp = (ServerPlayerEntity) event.getPlayer();
+            channel.send(PacketDistributor.PLAYER.with(() -> sp), new HashPacket(handler.getHash()));
+        }
     }
 
-    @SubscribeEvent
-    public void onPlayerJoin(final PlayerLoggedInEvent event) {
-        final ByteBuffer buffer = ByteBuffer.allocate(8);
-        buffer.putLong(handler.getHash());
-        sendTo(event.getPlayer(), buffer);
+    private void handleHash(final HashPacket msg, final Supplier<NetworkEvent.Context> ctx) {
+        ctx.get().enqueueWork(() -> {
+            if (msg.hash != handler.getHash()) {
+                throw new ContentPackException("Server and Client Hash are not equal!"
+                        + " Please check that you have got the same ContentPacks on Client and"
+                        + " Server! Server Hash: [" + msg.hash + "], Client Hash: ["
+                        + handler.getHash() + "]");
+            }
+        });
+        ctx.get().setPacketHandled(true);
     }
 
-    private void sendTo(final Player player, final ByteBuffer buf) {
-        final FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.copiedBuffer(buf.position(0)));
-        if (player instanceof ServerPlayer) {
-            final ServerPlayer server = (ServerPlayer) player;
-            server.connection.send(new ClientboundCustomPayloadPacket(channelName, buffer));
-        } else {
-            final Minecraft mc = Minecraft.getInstance();
-            mc.getConnection().send(new ServerboundCustomPayloadPacket(channelName, buffer));
+    public static final class HashPacket {
+        public final long hash;
+
+        public HashPacket(final long hash) {
+            this.hash = hash;
+        }
+
+        public static void encode(final HashPacket msg, final PacketBuffer buf) {
+            buf.writeLong(msg.hash);
+        }
+
+        public static HashPacket decode(final PacketBuffer buf) {
+            return new HashPacket(buf.readLong());
         }
     }
 }
