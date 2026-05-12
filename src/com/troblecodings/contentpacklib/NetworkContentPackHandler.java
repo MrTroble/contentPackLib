@@ -44,12 +44,11 @@ public class NetworkContentPackHandler {
     private void onPayload(final CustomPayloadEvent event) {
         final ByteBuffer buffer = event.getPayload().nioBuffer();
         final long serverHash = buffer.getLong();
-        if (serverHash != handler.getHash()) {
-            throw new IllegalArgumentException("Server and Client Hash are not equal!"
+        if (serverHash != handler.getHash())
+            throw new ContentPackException("Server and Client Hash are not equal!"
                     + " Please check that you have got the same ContentPacks on Client and Server!"
                     + " Server Hash: [" + serverHash + "], Client Hash: [" + handler.getHash()
                     + "]");
-        }
         event.getSource().setPacketHandled(true);
     }
 
