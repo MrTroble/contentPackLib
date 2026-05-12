@@ -70,13 +70,14 @@ public class ContentPackHandler {
             Files.list(contentDirectory).filter(path -> path.toString().endsWith(".zip"))
                     .forEach(path -> {
                         try {
-                            final ZipInputStream stream = new ZipInputStream(
-                                    new FileInputStream(path.toFile()));
-                            for (ZipEntry entry = stream
-                                    .getNextEntry(); entry != null; entry = stream.getNextEntry()) {
+                            final ZipInputStream stream =
+                                    new ZipInputStream(new FileInputStream(path.toFile()));
+                            for (ZipEntry entry = stream.getNextEntry(); entry != null; entry =
+                                    stream.getNextEntry()) {
                                 final ZipEntry currentEntry = entry;
                                 counter.getAndUpdate(current -> current ^ currentEntry.getCrc());
                             }
+                            stream.close();
                         } catch (final IOException e) {
                             e.printStackTrace();
                         }
