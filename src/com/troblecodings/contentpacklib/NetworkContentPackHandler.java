@@ -48,7 +48,7 @@ public class NetworkContentPackHandler {
     public void onPlayerJoin(final PlayerLoggedInEvent event) {
         final ByteBuffer buffer = ByteBuffer.allocate(8);
         buffer.putLong(handler.getHash());
-        sendTo(event.getPlayer(), buffer);
+        sendTo(event.getEntity(), buffer);
     }
 
     private void sendTo(final Player player, final ByteBuffer buf) {
