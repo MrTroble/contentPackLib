@@ -23,16 +23,14 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
 import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.Pack.Position;
+import net.minecraft.server.packs.repository.PackCompatibility;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraftforge.event.AddPackFindersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.resource.PathResourcePack;
+import net.minecraftforge.resource.PathPackResources;
 
 public class ContentPackHandler {
 
@@ -85,7 +83,7 @@ public class ContentPackHandler {
                             e.printStackTrace();
                         }
                     });
-        } catch (IOException e) {
+        } catch (final IOException e) {
             e.printStackTrace();
         }
         hash = counter.get();
@@ -101,20 +99,37 @@ public class ContentPackHandler {
     public void packEvent(final AddPackFindersEvent event) {
         if (!event.getPackType().equals(PackType.CLIENT_RESOURCES))
             return;
-        final Map<String, Pack> packs = new HashMap<>();
-        event.addRepositorySource((consumer, instance) -> {
-            if (packs.isEmpty()) {
-                for (final Path path : this.paths) {
-                    final String fileName = modid + "internal" + packs.size();
-                    final Component component = new TextComponent(fileName);
-                    packs.put(fileName,
-                            instance.create(fileName, component, true,
-                                    () -> new PathResourcePack(fileName, path),
-                                    new PackMetadataSection(component, 8), Position.TOP,
-                                    PackSource.DEFAULT, false));
+        // 1.20.4-Pack-API: Pack.Info nimmt PackCompatibility direkt (kein int format mehr) und
+        // eine overlays-Liste; Pack.create hat keinen PackType-Parameter mehr (er ergibt sich
+        // aus dem Pack.Info / Source). Wir setzen COMPATIBLE fest, damit alte ContentPacks mit
+        // anderem pack.mcmeta-Format nicht aus dem Loader fallen. Forge's PathPackResources ist
+        // die mod-bundled-Variante, die mit den FileSystem-Paths aus eingebundenen Zips zurechtkommt.
+        event.addRepositorySource(consumer -> {
+            int idx = 0;
+            for (final Path path : this.paths) {
+                final String fileName = modid + "internal" + idx;
+                idx++;
+                final Pack.Info info = new Pack.Info(Component.literal(fileName),
+                        PackCompatibility.COMPATIBLE,
+                        net.minecraft.world.flag.FeatureFlagSet.of(), List.of());
+                final Pack.ResourcesSupplier supplier = new Pack.ResourcesSupplier() {
+                    @Override
+                    public net.minecraft.server.packs.PackResources openPrimary(final String name) {
+                        return new PathPackResources(name, true, path);
+                    }
+
+                    @Override
+                    public net.minecraft.server.packs.PackResources openFull(final String name,
+                            final Pack.Info pInfo) {
+                        return openPrimary(name);
+                    }
+                };
+                final Pack pack = Pack.create(fileName, Component.literal(fileName), true,
+                        supplier, info, Pack.Position.TOP, false, PackSource.BUILT_IN);
+                if (pack != null) {
+                    consumer.accept(pack);
                 }
             }
-            packs.values().forEach(consumer);
         });
     }
 
@@ -136,6 +151,13 @@ public class ContentPackHandler {
     public List<Entry<String, String>> getFiles(final List<Path> paths) {
         final List<Entry<String, String>> files = new ArrayList<>();
         paths.forEach(path -> {
+            // Optional-Resource-Tolerance: ein Mod, der zB. keine
+            // armordefinitions hat, bekommt fuer den internen Lookup einen
+            // null-Pfad zurueck. Wir ignorieren das hier, statt NPE zu
+            // werfen.
+            if (path == null) {
+                return;
+            }
             try {
                 if (!(Files.exists(path) && Files.isDirectory(path)))
                     return;
